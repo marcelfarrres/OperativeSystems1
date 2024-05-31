@@ -189,16 +189,31 @@ int createServer(int inputPort, char * inputIp) {
 
 }
 
+
+
 //FRAMES-----------------------------------------------------------------------------
-#define OPT_CHECK_DOWNLOADS2 "DOWNLOADS"
+
+
+void initFrame(Frame * frame){
+	frame->type = 0;
+    frame->headerLength = (uint16_t) 0;
+    frame->header = NULL;
+    frame->data = NULL;
+}
+
+void freeFrame(Frame * frame){
+	
+    free(frame->header);
+    free(frame->data);
+}
 
 char * createFrame(uint8_t type, const char *header, const char *data) {
     char *frame = (char *)malloc(256);
-	int headerCounter = 0;
-	int dataCounter = 0;
+    int headerCounter = 0;
+    int dataCounter = 0;
 
-    size_t lengthHeader = strlen(header);
-    size_t lengthData = strlen(data);
+    int lengthHeader = strlen(header);
+    int lengthData = strlen(data);
 
     if (lengthHeader > 255) {
         printString("\nERROR: HEADER TOO LONG\n");
@@ -206,51 +221,57 @@ char * createFrame(uint8_t type, const char *header, const char *data) {
     }
 
     frame[0] = type;
-
     frame[1] = lengthHeader & 0xFF;
     frame[2] = (lengthHeader >> 8) & 0xFF;
 
-   
-    for (size_t i = 0; i < lengthHeader; ++i) {
+    for (int i = 0; i < lengthHeader; ++i) {
         frame[3 + i] = header[i];
-		headerCounter++;
+        headerCounter++;
     }
 
-
-    for (size_t i = 0; i < lengthData; ++i) {
-        frame[4 + lengthHeader + i] = data[i];
-		dataCounter++;
-
+    for (int i = 0; i < lengthData; ++i) {
+        frame[3 + lengthHeader + i] = data[i];
+        dataCounter++;
     }
-  
-    size_t totalLength = 3 + lengthHeader + lengthData + 1;
-    size_t pad = 256 - totalLength;
 
-    frame[(int)totalLength] = '\0';
-    memset(&frame[((int)totalLength ) + 1], 0, pad);
+    int totalLength = 3 + lengthHeader + lengthData; 
+    int pad = 256 - totalLength;
 
-    printInt("\ntotalLength: ", totalLength );
-    printInt("\npad: ", pad );
-    printInt("\nheaderCounter: ", headerCounter );
-    printInt("\ndataCounter: ", dataCounter );
-
-   return frame;
-}
-
-typedef struct{
-    uint8_t type;
-    uint16_t headerLength;
-    char *header;
-    char *data;
-}Frame; 
-
-int readFrame(int socketFd){
-    char frame[256];
-     int num = read(socketFd, frame, 256);
-	printString(frame);
-	return num;
+    frame[totalLength] = '\0'; 
+    memset(&frame[totalLength + 1], 0, pad); 
 
     
+    return frame;
 }
+
+int readFrame(int socketFd, Frame * frame) {
+    char buffer[256];
+    int numBytes = read(socketFd, buffer, 256);
+
+    if (numBytes <= 0) {
+        return numBytes;
+    }
+
+    freeFrame(frame);
+
+    frame->type = buffer[0];
+    frame->headerLength = (buffer[2] << 8) | buffer[1];
+
+    frame->header = (char *)malloc(frame->headerLength * sizeof(char));
+    memcpy(frame->header, buffer + 3, frame->headerLength);
+
+    int dataLength = numBytes - (3 + frame->headerLength); 
+   
+    frame->data = (char *)malloc(dataLength * sizeof(char));
+    memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
+    frame->data[dataLength] = '\0'; 
+
+    return 1;
+}
+
+
+
+
+
 
 

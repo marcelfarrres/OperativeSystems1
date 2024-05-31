@@ -6,13 +6,13 @@ int pooleSocketFd, bowmanSocketFd;
 fd_set setOfSockFd;
 int *sockets;
 int numberOfSockets;
+Frame frame; 
+
 
 struct sockaddr_in c_addr;
 socklen_t c_len = sizeof(c_addr);
 
 
-
-//SIGNALS PHASE-----------------------------------------------------------------
 //SIGNALS PHASE-----------------------------------------------------------------
 void ctrl_C_function() {
     printStringWithHeader("^\nFreeing memory...", " ");
@@ -45,22 +45,18 @@ void ctrl_C_function() {
 
 
 //DISCOVERY SOCKET FUCNCTIONS-----------------------------------------------------------------
-void handleNewMessage(int messageSocket) {
-    printInt("\nMESSAGE FROM: ", messageSocket);
 
-    // Attempt to read from the socket
-    int result = readFrame(messageSocket);
-    if (result <= 0) {
-        // If readFrame returns 0 or a negative value, it indicates the socket is closed or an error occurred
-        printInt("\nSocket closed: ", messageSocket);
+void socketDisconnectedDiscovery(int socket_){
+    // If readFrame returns 0 or a negative value, it indicates the socket is closed or an error occurred
+        printInt("\nSocket closed: ", socket_);
 
         // Remove the socket from the set and array
-        FD_CLR(messageSocket, &setOfSockFd);
-        close(messageSocket);
+        FD_CLR(socket_, &setOfSockFd);
+        close(socket_);
 
         // Find and remove the socket from the sockets array
         for (int i = 0; i < numberOfSockets; i++) {
-            if (sockets[i] == messageSocket) {
+            if (sockets[i] == socket_) {
                 // Shift remaining sockets
                 for (int j = i; j < numberOfSockets - 1; j++) {
                     sockets[j] = sockets[j + 1];
@@ -70,6 +66,30 @@ void handleNewMessage(int messageSocket) {
                 break;
             }
         }
+}
+
+void handleNewMessage(int messageSocket) {
+    
+
+    int result = readFrame(messageSocket, &frame);
+    if (result <= 0) {
+        socketDisconnectedDiscovery(messageSocket);
+        
+    }else{
+        printInt("\nMESSAGE FROM:", messageSocket);
+        printInt("\nTYPE:", frame.type);
+        printInt("\nHEADERLEnght:", frame.headerLength);
+        printStringWithHeader("\nHEADER:", frame.header);
+        printStringWithHeader("\nDATA:", frame.data);
+
+       
+
+
+
+
+        
+
+
     }
 }
 
@@ -82,6 +102,8 @@ int main(int argc, char *argv[]) {
     //AUXILIAR VARIABLES
     int discoveryFd = -1; //DISCOVERY FILE
     numberOfSockets = 0;
+    initFrame(&frame);
+    
 
     //SIGNAL ctrl C
     signal(SIGINT, ctrl_C_function);
@@ -102,32 +124,13 @@ int main(int argc, char *argv[]) {
     printStringWithHeader("Discovery ipBowman:", discovery.ipBowman);
     printInt("Discovery portBowman:", discovery.portBowman);
 
-    //sleep(15);
-
     printString("Creating Socket for Poole and Bowman..\n");
     
-
-
-
     pooleSocketFd = createServer(discovery.portPoole, discovery.ipPoole);
     printInt("\npooleSocketFd: ", pooleSocketFd);
     bowmanSocketFd = createServer(discovery.portBowman, discovery.ipBowman);
     printInt("\nBowmanSocketFd: ", bowmanSocketFd);
 
-/*
-    struct sockaddr_in auxSocket;
-    socklen_t auxSocketLength = sizeof(auxSocket);
-
-
-    int newSocket = accept(pooleSocketFd, (struct sockaddr *)&auxSocket, &auxSocketLength);
-
-    if (newSocket < 0) {
-        printString("\nERROR ACCEPTING NEW CONNECTION");
-        exit(EXIT_FAILURE);
-    }else{
-        printString("\nNEW CONNECTION ACCEPTED");
-    }
-*/
     FD_ZERO(&setOfSockFd);
     FD_SET(pooleSocketFd, &setOfSockFd);
     FD_SET(bowmanSocketFd, &setOfSockFd);

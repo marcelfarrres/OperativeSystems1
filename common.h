@@ -20,6 +20,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "structures.h"
+
 
 #define OPT_CONNECT "CONNECT"
 #define OPT_CHECK_DOWNLOADS1 "CHECK"
@@ -50,7 +52,12 @@ int connectToServer(char *ip, int port);
 
 //FRAMES-----------------------------------------------------------------------------
 char * createFrame(uint8_t type, const char *header, const char *data);
-int readFrame(int socketFd);
+int readFrame(int socketFd, Frame * frame);
+
+void initFrame(Frame * frame);
+void freeFrame(Frame * frame);
+
+
 
 
 

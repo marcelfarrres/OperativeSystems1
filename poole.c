@@ -6,6 +6,7 @@ int pooleFd = -1; //POOLE FILE
 int discoverySocketFd = -1;
 
 
+
 void removeAmp(char *buffer, int *Amp) {
     int length = strlen(buffer);
 
@@ -48,7 +49,7 @@ int main(int argc, char *argv[]) {
     //AUXILIAR VARIABLES
     char *buffer; //Buffer
     int Amp = 0; //Number of &
-   
+    
 
     //SIGNAL ctrl C
     signal(SIGINT, ctrl_C_function);
@@ -85,11 +86,11 @@ int main(int argc, char *argv[]) {
     
 
     discoverySocketFd = connectToServer(poole.ipDiscovery, poole.portDiscovery);
-    printString("QUE PASA!");
+    
     printInt("discoverySocketFd:", discoverySocketFd);
 
     char * frameToSend = createFrame( 0x01, "NEW_POOLE", "por mis muertos enterrados!");
-    printString("QUE PASAAA!");
+    
 
     printInt("discoverySocketFd:", discoverySocketFd);
 
