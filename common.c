@@ -244,10 +244,11 @@ typedef struct{
     char *data;
 }Frame; 
 
-void readFrame(int socketFd){
+int readFrame(int socketFd){
     char frame[256];
-     read(socketFd, frame, 256);
+     int num = read(socketFd, frame, 256);
 	printString(frame);
+	return num;
 
     
 }

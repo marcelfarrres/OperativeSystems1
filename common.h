@@ -50,7 +50,7 @@ int connectToServer(char *ip, int port);
 
 //FRAMES-----------------------------------------------------------------------------
 char * createFrame(uint8_t type, const char *header, const char *data);
-void readFrame(int socketFd);
+int readFrame(int socketFd);
 
 
 

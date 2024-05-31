@@ -7,6 +7,10 @@ fd_set setOfSockFd;
 int *sockets;
 int numberOfSockets;
 
+struct sockaddr_in c_addr;
+socklen_t c_len = sizeof(c_addr);
+
+
 
 //SIGNALS PHASE-----------------------------------------------------------------
 //SIGNALS PHASE-----------------------------------------------------------------
@@ -25,10 +29,13 @@ void ctrl_C_function() {
     printStringWithHeader(" .", " ");
     printStringWithHeader("  .", " ");
     
-    if (sockets != NULL) {
-        free(sockets);
-        printStringWithHeader("   .", " ");
+   for (int i = 0; i < numberOfSockets; i++) {
+        close(sockets[i]);
     }
+    free(sockets);
+    
+   
+    
 
     printStringWithHeader("    .", " ");
     printStringWithHeader("     ...All memory freed...", "\n\nReady to EXIT this DISCOVERY Process.");
@@ -38,31 +45,36 @@ void ctrl_C_function() {
 
 
 //DISCOVERY SOCKET FUCNCTIONS-----------------------------------------------------------------
-void handleNewConnection(int sockfd) {
-    struct sockaddr_in auxSocket;
-    socklen_t auxSocketLength = sizeof(auxSocket);
-    int newSocket = accept(sockfd, (struct sockaddr *)&auxSocket, &auxSocketLength);
+void handleNewMessage(int messageSocket) {
+    printInt("\nMESSAGE FROM: ", messageSocket);
 
-    if (newSocket < 0) {
-        printString("\nERROR ACCEPTING NEW CONNECTION");
-        exit(EXIT_FAILURE);
-    }else{
-        printString("\nNEW CONNECTION ACCEPTED");
+    // Attempt to read from the socket
+    int result = readFrame(messageSocket);
+    if (result <= 0) {
+        // If readFrame returns 0 or a negative value, it indicates the socket is closed or an error occurred
+        printInt("\nSocket closed: ", messageSocket);
+
+        // Remove the socket from the set and array
+        FD_CLR(messageSocket, &setOfSockFd);
+        close(messageSocket);
+
+        // Find and remove the socket from the sockets array
+        for (int i = 0; i < numberOfSockets; i++) {
+            if (sockets[i] == messageSocket) {
+                // Shift remaining sockets
+                for (int j = i; j < numberOfSockets - 1; j++) {
+                    sockets[j] = sockets[j + 1];
+                }
+                numberOfSockets--;
+                sockets = realloc(sockets, sizeof(int) * numberOfSockets);
+                break;
+            }
+        }
     }
-
-    sockets = realloc(sockets, sizeof(int) * (numberOfSockets + 1));
-    sockets[numberOfSockets] = newSocket;
-    numberOfSockets++;
-    FD_SET(newSocket, &setOfSockFd);
-    printInt("NEW CONNECTION, SOCKET ID: ", newSocket );
-    
 }
 
 
-void processClientMessage(int sockfd) {
-    printInt("\nNEW MESSAGE FROM: ", sockfd );
-    
-}
+
 //-----------------------------------------------------------------
 
 
@@ -119,41 +131,48 @@ int main(int argc, char *argv[]) {
     FD_ZERO(&setOfSockFd);
     FD_SET(pooleSocketFd, &setOfSockFd);
     FD_SET(bowmanSocketFd, &setOfSockFd);
-
-    //int maxNumberOfSockFd = 512;   
+    
+    
     while (1) {
-        struct sockaddr_in c_addr;
-        socklen_t c_len = sizeof(c_addr);
+        
+        fd_set auxiliarSetOf = setOfSockFd;  // Copy the set for select
 
-        fd_set tmp_fds = setOfSockFd;  // Copy the set for select
+        select(50, &auxiliarSetOf, NULL, NULL, NULL);
 
-        select(512, &tmp_fds, NULL, NULL, NULL);
-
-        for (int i = 0; i < 512; i++) {
-            if (FD_ISSET(i, &tmp_fds)) {
-                if (i == pooleSocketFd || i == bowmanSocketFd) {
-                    printString("New connection\n");
-                    int newsock = accept(i, (void *)&c_addr, &c_len);
-
-                    printInt("New client with socket:", newsock);
-                    if (newsock < 0) {
-                        perror("accept");
+        for (int i = 0; i < 50; i++) {
+            if (FD_ISSET(i, &auxiliarSetOf)) {
+                if (i == pooleSocketFd){
+                    
+                    int newPoole = accept(i, (void *)&c_addr, &c_len);
+                    if (newPoole < 0) {
+                        printString("\nERROR: NewPoole not connected\n");
+                        ctrl_C_function();
                         exit(EXIT_FAILURE);
                     }
-
+                    printInt("\nNew POOLE connected with socket: ", newPoole);
                     sockets = realloc(sockets, sizeof(int) * (numberOfSockets + 1));
-                    sockets[numberOfSockets] = newsock;
+                    printInt("\nSizeof(Socket): ", sizeof(int) * (numberOfSockets + 1));
+                    printInt("\nNew size of ..sockets.. array: ", sizeof(sockets));
+                    sockets[numberOfSockets] = newPoole;
                     numberOfSockets++;
-                    FD_SET(newsock, &setOfSockFd);
+                    FD_SET(newPoole, &setOfSockFd);
 
-                    if (i == pooleSocketFd) {
-                        printf("Poole connected\n");
-                    } else {
-                        printf("Bowman connected\n");
+                } else if (i == bowmanSocketFd) {
+                    int newBowman = accept(i, (void *)&c_addr, &c_len);
+                    if (newBowman < 0) {
+                        printString("\nERROR: NewBowman not connected\n");
+                        ctrl_C_function();
+                        exit(EXIT_FAILURE);
                     }
+                    printInt("\nNew BOWMAN connected with socket: ", newBowman);
+                    sockets = realloc(sockets, sizeof(int) * (numberOfSockets + 1));
+                    printInt("\nSizeof(Socket): ", sizeof(int) * (numberOfSockets + 1));
+                    printInt("\nNew size of ..sockets.. array: ", sizeof(sockets));
+                    sockets[numberOfSockets] = newBowman;
+                    numberOfSockets++;
+                    FD_SET(newBowman, &setOfSockFd);
                 } else {
-                    //printf("New message from %d\n", i);
-                    //discoveryMenu(i);
+                    handleNewMessage(i);
                 }
             }
         }
