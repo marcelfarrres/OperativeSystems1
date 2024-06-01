@@ -186,14 +186,14 @@ int connectToServer(char *ip, int port) {
 
 
 
-int createServer(int inputPort, char * inputIp) {
+int createServer(int inputPort) {
     
 	struct sockaddr_in server;
 	int listenfd = 0;
     // Create socket
     bzero(&server, sizeof(server));
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = inet_addr(inputIp); 
+    server.sin_addr.s_addr = INADDR_ANY; 
     server.sin_port = htons(inputPort);
 
 	//Create a universal SOcket

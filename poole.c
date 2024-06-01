@@ -4,7 +4,14 @@
 Poole poole;
 int pooleFd = -1; //POOLE FILE
 int discoverySocketFd = -1;
+fd_set setOfSockFd;
+int *sockets;
+int numberOfSockets;
 Frame frame; 
+int thisPooleFd;
+
+struct sockaddr_in c_addr;
+socklen_t c_len = sizeof (c_addr);
 
 
 //SIGNALS PHASE-----------------------------------------------------------------
@@ -19,6 +26,12 @@ void ctrl_C_function() {
     close(pooleFd);
     close(discoverySocketFd);
 
+    FD_ZERO(&setOfSockFd);
+    for (int i = 0; i < numberOfSockets; i++) {
+        close(sockets[i]);
+    }
+    free(sockets);
+
     free(frame.data);
     free(frame.header);
 
@@ -31,11 +44,32 @@ void ctrl_C_function() {
     exit(EXIT_SUCCESS);
 }
 
+void socketDisconnectedPoole(int socket_){
+    
+        printInt("\nSocket closed: ", socket_);
+  
+        FD_CLR(socket_, &setOfSockFd);
+        close(socket_);
+       
+        for (int i = 0; i < numberOfSockets; i++) {
+            if (sockets[i] == socket_) {
+                
+                for (int j = i; j < numberOfSockets - 1; j++) {
+                    sockets[j] = sockets[j + 1];
+                }
+                numberOfSockets--;
+                sockets = realloc(sockets, sizeof(int) * numberOfSockets);
+                break;
+            }
+        }
+}
+
 //-----------------------------------------------------------------
 
 int main(int argc, char *argv[]) {
     //AUXILIAR VARIABLES
     initFrame(&frame);
+    numberOfSockets = 0;
     //SIGNAL ctrl C
     signal(SIGINT, ctrl_C_function);
 
@@ -72,18 +106,68 @@ int main(int argc, char *argv[]) {
 
     char *miniBuffer;
     asprintf(&miniBuffer, "%s&%s&%d", poole.name, poole.ipPoole, poole.portPoole);
-    //printString(miniBuffer);
     sendNewConnectionPooleDiscovery(discoverySocketFd, miniBuffer);
     free(miniBuffer);
 
     int result = readFrame(discoverySocketFd, &frame);
     if (result <= 0) {
         printString("\nERROR: OK not receieved\n");
+        ctrl_C_function();
         
-    }else if(strcmp(frame.header, "CON_OK") == 0){
+    }else if(strcmp(frame.header, "CON_OK") != 0){
+        printString("\nERROR: not what we were expecting\n");
+        printFrame(&frame);
+        ctrl_C_function();
+        
+    }else{
         printFrame(&frame);
         printString("\nConnection stablished, waiting Bowman connections!\n");
+
+        thisPooleFd = createServer(poole.portPoole);
+
+        printString("\nPOOLE SERVER CREATED, waiting for bowman frames..\n");
+
+
+        FD_ZERO(&setOfSockFd);
+        FD_SET(thisPooleFd, &setOfSockFd);
+
+        while (1) {
+        
+        fd_set auxiliarSetOf = setOfSockFd;  
+
+        select(50, &auxiliarSetOf, NULL, NULL, NULL);
+
+        for (int i = 0; i < 50; i++) {
+            if (FD_ISSET(i, &auxiliarSetOf)) {
+                if (i == thisPooleFd){
+                    
+                    int newBowman = accept(i, (void *)&c_addr, &c_len);
+                    if (newBowman < 0) {
+                        printString("\nERROR: newBowman not connected\n");
+                        ctrl_C_function();
+                        exit(EXIT_FAILURE);
+                    }
+                    printInt("\nNew Bowman connected with socket: ", newBowman);
+                    sockets = realloc(sockets, sizeof(int) * (numberOfSockets + 1));
+                    printInt("\nSizeof(Socket): ", sizeof(int) * (numberOfSockets + 1));
+                    printInt("\nNew size of ..sockets.. array: ", sizeof(sockets));
+                    sockets[numberOfSockets] = newBowman;
+                    numberOfSockets++;
+                    FD_SET(newBowman, &setOfSockFd);
+
+                } else {
+                    //handleNewMessage(i);
+                }
+            }
+        }
     }
+        
+
+
+    }
+
+
+
 
     sleep(100);
     return 0;

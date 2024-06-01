@@ -9,9 +9,15 @@ p:
 	gcc -g poole.c common.c -o poole $(ALL_FLAGS)
 	./poole poole.dat
 
+p2: 
+	gcc -g poole.c common.c -o poole $(ALL_FLAGS)
+	./poole poole2.txt
+
 d: 
 	gcc -g discovery.c common.c -o discovery $(ALL_FLAGS)
 	./discovery discovery.dat
+
+
 
 
 vb:

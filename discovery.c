@@ -25,7 +25,7 @@ void ctrl_C_function() {
     free(discovery.ipPoole);
     free(discovery.ipBowman);
 
-    FD_ZERO(&setOfSockFd);
+    
 
     close(pooleSocketFd);
     close(bowmanSocketFd);
@@ -33,7 +33,8 @@ void ctrl_C_function() {
     printStringWithHeader(" .", " ");
     printStringWithHeader("  .", " ");
     
-   for (int i = 0; i < numberOfSockets; i++) {
+    FD_ZERO(&setOfSockFd);
+    for (int i = 0; i < numberOfSockets; i++) {
         close(sockets[i]);
     }
     free(sockets);
@@ -114,7 +115,7 @@ void handleNewMessage(int messageSocket) {
         sendOkConnectionDiscoveryPoole(messageSocket);
         printString("Poole server added!\n");
             
-        printPooleServer(listOfPooleServers[0]);
+        printPooleServer(listOfPooleServers[numberOfPooleServers - 1]);
                            
     }
     
@@ -152,9 +153,9 @@ int main(int argc, char *argv[]) {
 
     printString("Creating Socket for Poole and Bowman..\n");
     
-    pooleSocketFd = createServer(discovery.portPoole, discovery.ipPoole);
+    pooleSocketFd = createServer(discovery.portPoole);
     printInt("\npooleSocketFd: ", pooleSocketFd);
-    bowmanSocketFd = createServer(discovery.portBowman, discovery.ipBowman);
+    bowmanSocketFd = createServer(discovery.portBowman);
     printInt("\nBowmanSocketFd: ", bowmanSocketFd);
 
     FD_ZERO(&setOfSockFd);
@@ -164,7 +165,7 @@ int main(int argc, char *argv[]) {
     
     while (1) {
         
-        fd_set auxiliarSetOf = setOfSockFd;  // Copy the set for select
+        fd_set auxiliarSetOf = setOfSockFd;  
 
         select(50, &auxiliarSetOf, NULL, NULL, NULL);
 

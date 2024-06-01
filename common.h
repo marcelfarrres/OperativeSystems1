@@ -50,7 +50,7 @@ void readIntFromFile(int fd, char delimiter, int *destination);
 void readFromConsole(int * lenght, char (* buffer)[200]);
 
 //SOCKETS-----------------------------------------------------------------------------
-int createServer(int inputPort, char * inputIp);
+int createServer(int inputPort);
 int connectToServer(char *ip, int port);
 
 //FRAMES-----------------------------------------------------------------------------
