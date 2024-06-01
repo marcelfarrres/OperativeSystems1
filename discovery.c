@@ -7,6 +7,7 @@ fd_set setOfSockFd;
 int *sockets;
 int numberOfSockets;
 Frame frame; 
+PooleServer ** listOfPooleServers;
 
 
 struct sockaddr_in c_addr;
@@ -71,17 +72,36 @@ void handleNewMessage(int messageSocket) {
     if (result <= 0) {
         socketDisconnectedDiscovery(messageSocket);
         
-    }else{
-        printInt("MESSAGE FROM:", messageSocket);
-        printInt("TYPE:", frame.type);
-        printInt("HEADERLEnght:", frame.headerLength);
-        printStringWithHeader("HEADER:", frame.header);
-        printStringWithHeader("DATA:", frame.data);
+    }else if(strcmp(frame.header, "NEW_POOLE") == 0){
+        printFrame(&frame);
+        
+        char** separatedData;
+        int numberOfData = separateData(frame.data, &separatedData);
+        printInt("numberOfData:", numberOfData);
+        
+
 
         
-       
+        
+            
+        
+            /*
+            PooleServer *newServer;
+            newServer = (PooleServer *) malloc(sizeof(PooleServer));
 
+            newServer->name = strdup(info[0]);
+            newServer->ip = strdup(info[1]);
+            newServer->port = atoi(info[2]);
+            newServer->connnections = 0;
+                        servers = realloc(servers, sizeof(PooleServer) * (num_servers + 1));
+            servers[num_servers] = newServer;
+            num_servers++;
+                        sendMessage(sockfd, 0x01, strlen(HEADER_CON_OK), HEADER_CON_OK, "");
+            printf("New poole server added\n");
+            */
+                           
     }
+    
 }
 
 //-----------------------------------------------------------------

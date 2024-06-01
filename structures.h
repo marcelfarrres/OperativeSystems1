@@ -26,6 +26,13 @@ typedef struct{
 }Discovery;
 
 typedef struct{
+    char *name;
+    int port;
+    char *ip;
+    int numConnections;
+}PooleServer;
+
+typedef struct{
     uint8_t type;
     uint16_t headerLength;
     char *header;

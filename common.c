@@ -85,6 +85,13 @@ void printInt( char* text_,  int int_) {
     free(buffer);
 }
 
+void printFrame(Frame * frame){
+    printInt("TYPE:", frame->type);
+    printInt("HEADERLEnght:", frame->headerLength);
+    printStringWithHeader("HEADER:", frame->header);
+    printStringWithHeader("DATA:", frame->data);
+}
+
 //READ FROM FILES-----------------------------------------------------------------------------
 void readStringFromFile(int fd, char delimiter, char **destination) {
     char *buffer = read_until(fd, delimiter);
@@ -276,6 +283,55 @@ int readFrame(int socketFd, Frame * frame) {
     frame->data[dataLength] = '\0'; 
 
     return 1;
+}
+
+
+int separateData(char *data, char ***destination) {
+    int i = 0;
+    int count = 0;
+    char *dataCopy;
+    char *token;
+
+    dataCopy = strdup(data);
+    if (dataCopy == NULL) {
+        printString("Memory allocation failed\n");
+        return -1;
+    }
+
+    token = strtok(dataCopy, "&");
+    while (token != NULL) {
+        count++;
+        token = strtok(NULL, "&");
+    }
+
+    *destination = (char **)malloc(count * sizeof(char *));
+    if (*destination == NULL) {
+        printString("Memory allocation failed\n");
+        free(dataCopy); 
+        return -1;
+    }
+
+    strcpy(dataCopy, data);
+
+    token = strtok(dataCopy, "&");
+    while (token != NULL) {
+        (*destination)[i] = (char *)malloc((strlen(token) + 1) * sizeof(char));
+        if ((*destination)[i] == NULL) {
+            printString("Memory allocation failed\n");
+            
+            for (int j = 0; j < i; j++) {
+                free((*destination)[j]);
+            }
+            free(*destination);
+            free(dataCopy);
+            return -1;
+        }
+        strcpy((*destination)[i], token);
+        i++;
+        token = strtok(NULL, "&");
+    }
+    free(dataCopy);
+	return count;
 }
 
 //DOCUMENTATION SENDING FRAMES------------------------------------------------------------

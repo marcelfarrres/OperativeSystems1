@@ -39,6 +39,8 @@ void openFile( char *filename, int *fd);
 void printStringWithHeader(  char* text_,  char* string_);
 void printString( char* text_);
 void printInt( char* text_,  int int_);
+void printFrame(Frame * frame);
+
 
 //READ FROM FILES-----------------------------------------------------------------------------
 void readStringFromFile(int fd, char delimiter, char ** destination);
@@ -56,6 +58,8 @@ void initFrame(Frame * frame);
 void freeFrame(Frame * frame);
 char * createFrame(uint8_t type,  char *header,  char *data);
 int readFrame(int socketFd, Frame * frame);
+int separateData(char *data, char ***destination);
+
 
 
 //DOCUMENTATION SENDING FRAMES:
