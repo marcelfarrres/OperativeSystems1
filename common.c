@@ -268,13 +268,14 @@ int readFrame(int socketFd, Frame * frame) {
         return numBytes;
     }
 
-    freeFrame(frame);
+    //freeFrame(frame);
 
     frame->type = buffer[0];
     frame->headerLength = (buffer[2] << 8) | buffer[1];
 
-    frame->header = (char *)malloc(frame->headerLength * sizeof(char));
+    frame->header = (char *)malloc(((frame->headerLength) + 1) * sizeof(char));
     memcpy(frame->header, buffer + 3, frame->headerLength);
+	(frame->header)[((frame->headerLength) + 1)] = '\0';
 
     int dataLength = numBytes - (3 + frame->headerLength); 
    
@@ -285,12 +286,24 @@ int readFrame(int socketFd, Frame * frame) {
     return 1;
 }
 
+void freeSeparatedData(char *** data, int *num){
+    if(*num > 0){
 
-int separateData(char *data, char ***destination) {
+        for (int j = 0; j < *num; j++) {
+                free((*data)[j]);
+            }
+        free(*data);
+    }
+	*num = 0;
+}
+
+int separateData(char *data, char ***destination, int *num) {
     int i = 0;
     int count = 0;
     char *dataCopy;
     char *token;
+
+	freeSeparatedData(destination, num);
 
     dataCopy = strdup(data);
     if (dataCopy == NULL) {
@@ -333,6 +346,7 @@ int separateData(char *data, char ***destination) {
     free(dataCopy);
 	return count;
 }
+
 
 //DOCUMENTATION SENDING FRAMES------------------------------------------------------------
 #define MAX_FRAME_SIZE 256

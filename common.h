@@ -58,7 +58,9 @@ void initFrame(Frame * frame);
 void freeFrame(Frame * frame);
 char * createFrame(uint8_t type,  char *header,  char *data);
 int readFrame(int socketFd, Frame * frame);
-int separateData(char *data, char ***destination);
+void freeSeparatedData(char *** data, int * num);
+int separateData(char *data, char ***destination, int * num);
+
 
 
 

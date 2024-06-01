@@ -8,6 +8,8 @@ int *sockets;
 int numberOfSockets;
 Frame frame; 
 PooleServer ** listOfPooleServers;
+char** separatedData;
+int numberOfData = 0;
 
 
 struct sockaddr_in c_addr;
@@ -34,13 +36,19 @@ void ctrl_C_function() {
         close(sockets[i]);
     }
     free(sockets);
-    
+
+    free(frame.data);
+    free(frame.header);
+
+    freeSeparatedData(&separatedData, &numberOfData);
 
     printStringWithHeader("    .", " ");
     printStringWithHeader("     ...All memory freed...", "\n\nReady to EXIT this DISCOVERY Process.");
     
     exit(EXIT_SUCCESS);
 } 
+
+
 
 
 //DISCOVERY SOCKET FUCNCTIONS-----------------------------------------------------------------
@@ -75,9 +83,14 @@ void handleNewMessage(int messageSocket) {
     }else if(strcmp(frame.header, "NEW_POOLE") == 0){
         printFrame(&frame);
         
-        char** separatedData;
-        int numberOfData = separateData(frame.data, &separatedData);
-        printInt("numberOfData:", numberOfData);
+        
+        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+
+        //numberOfData = separateData(frame.data, &separatedData, numberOfData);
+
+
+        
+
         
 
 
