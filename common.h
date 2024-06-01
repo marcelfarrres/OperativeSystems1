@@ -30,14 +30,15 @@
 //VERY USED FUNCTIONS-----------------------------------------------------------------------------
 char *read_until(int fd, char end);
 
+
 //INPUT PHASE-----------------------------------------------------------------------------
 void checkArgc(int argc);
-void openFile(const char *filename, int *fd);
+void openFile( char *filename, int *fd);
 
 //PRINT ON CONSOLE-----------------------------------------------------------------------------
-void printStringWithHeader( const char* text_, const char* string_);
-void printString(const char* text_);
-void printInt(const char* text_, const int int_);
+void printStringWithHeader(  char* text_,  char* string_);
+void printString( char* text_);
+void printInt( char* text_,  int int_);
 
 //READ FROM FILES-----------------------------------------------------------------------------
 void readStringFromFile(int fd, char delimiter, char ** destination);
@@ -51,12 +52,43 @@ int createServer(int inputPort, char * inputIp);
 int connectToServer(char *ip, int port);
 
 //FRAMES-----------------------------------------------------------------------------
-char * createFrame(uint8_t type, const char *header, const char *data);
-int readFrame(int socketFd, Frame * frame);
-
 void initFrame(Frame * frame);
 void freeFrame(Frame * frame);
+char * createFrame(uint8_t type,  char *header,  char *data);
+int readFrame(int socketFd, Frame * frame);
 
+
+//DOCUMENTATION SENDING FRAMES:
+void sendNewConnectionPooleDiscovery(int socketFd,  char * data);
+void sendOkConnectionDiscoveryPoole(int socketFd);
+void sendKoConnectionDiscoveryPoole(int socketFd);
+
+void sendNewConnectionBowmanDiscovery(int socketFd,  char * data);
+void sendOkConnectionDiscoveryBowman(int socketFd, char * data);
+void sendKoConnectionDiscoveryBowman(int socketFd);
+
+void sendNewConnectionBowmanPoole(int socketFd,  char * data);
+void sendOkConnectionPooleBowman(int socketFd);
+void sendKoConnectionPooleBowman(int socketFd);
+
+void listSongs(int socketFd);
+void sendSongsResponse(int socketFd,  char * songs);
+
+void listPlaylists(int socketFd);
+void sendPlaylistsResponse(int socketFd,  char * playlists);
+
+void downloadSong(int socketFd,  char * songName);
+void downloadPlaylist(int socketFd,  char * playlistName);
+
+void sendFileInfo(int socketFd,  char * fileInfo);
+void sendFileData(int socketFd,  char * fileData);
+
+void sendCheckResult(int socketFd,  char * result);
+
+void sendLogout(int socketFd,  char * userName);
+void sendLogoutResponse(int socketFd,  char * result);
+
+void sendUnknownFrame(int socketFd);
 
 
 

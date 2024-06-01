@@ -7,6 +7,7 @@ int discoverySocketFd = -1;
 
 
 
+
 void removeAmp(char *buffer, int *Amp) {
     int length = strlen(buffer);
 
@@ -47,9 +48,6 @@ void ctrl_C_function() {
 
 int main(int argc, char *argv[]) {
     //AUXILIAR VARIABLES
-    char *buffer; //Buffer
-    int Amp = 0; //Number of &
-    
 
     //SIGNAL ctrl C
     signal(SIGINT, ctrl_C_function);
@@ -58,23 +56,18 @@ int main(int argc, char *argv[]) {
 
     openFile(argv[1], &pooleFd);
 
-    buffer = read_until(pooleFd, '\n');
-    size_t length = strlen(buffer);
-
-    removeAmp(buffer, &Amp);
-
-    poole.name = malloc((length - Amp) * sizeof(char));
-    strcpy(poole.name, buffer);
-    poole.name[length - Amp] = '\0';
-    free(buffer);
-
+    
+    readStringFromFile(pooleFd, '\n', &poole.name);
     readStringFromFile(pooleFd, '\n', &poole.folder);
     readStringFromFile(pooleFd, '\n', &poole.ipDiscovery);
     readIntFromFile(pooleFd, '\n', &poole.portDiscovery);
     readStringFromFile(pooleFd, '\n', &poole.ipPoole);
     readIntFromFile(pooleFd, '\n', &poole.portPoole);
+    
 
     close(pooleFd);
+    //printInt("sizeof(poole.name):",sizeof(poole.name));
+    //printInt("sizeof(poole.ipPoole):",sizeof(poole.ipPoole));
 
     printStringWithHeader("Pooleee name:", poole.name);
     printStringWithHeader("Poole folder:", poole.folder);
@@ -89,12 +82,14 @@ int main(int argc, char *argv[]) {
     
     printInt("discoverySocketFd:", discoverySocketFd);
 
-    char * frameToSend = createFrame( 0x01, "NEW_POOLE", "por mis muertos enterrados!");
-    
 
-    printInt("discoverySocketFd:", discoverySocketFd);
+    char *miniBuffer;
+    asprintf(&miniBuffer, "%s&%s&%d", poole.name, poole.ipPoole, poole.portPoole);
+    //printString(miniBuffer);
+    sendNewConnectionPooleDiscovery(discoverySocketFd, miniBuffer);
+    free(miniBuffer);
 
-    write(discoverySocketFd, frameToSend, 256);
+   
 
     sleep(100);
     return 0;

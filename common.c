@@ -2,26 +2,34 @@
 
 
 //VERY USED FUNCTIONS-----------------------------------------------------------------------------
-char * read_until(int fd, char end) {
-	char *string = NULL;
-	char c;
-	int i = 0, size;
+char *read_until(int fd, char end)
+{
+    char *string = NULL;
+    char c;
+    int i = 0, size;
 
-	while (1) {
-		size = read(fd, &c, sizeof(char));
-		if(string == NULL){
-			string = (char *) malloc(sizeof(char));
-		}
-		if(c != end && size > 0){
-			string = (char *) realloc(string, sizeof(char)*(i + 2));
-			string[i++] = c;
-		}else{
-			break;
-		}
-	}
-	string[i] = '\0';
-	return string;
+    while (1)
+    {
+        size = read(fd, &c, sizeof(char));
+        if (string == NULL)
+        {
+            string = (char *)malloc(sizeof(char));
+        }
+        if (c != end && size > 0)
+        {
+            string = (char *)realloc(string, sizeof(char) * (i + 2));
+            string[i++] = c;
+        }
+        else
+        {
+            break;
+        }
+    }
+    string[i] = '\0';
+    return string;
 }
+
+
 
 //INPUT PHASE-----------------------------------------------------------------------------
 void checkArgc(int argc) {
@@ -31,7 +39,7 @@ void checkArgc(int argc) {
     }
 }
 
-void openFile(const char *filename, int *fd) {
+void openFile( char *filename, int *fd) {
     *fd = open(filename, O_RDONLY);
     if (*fd == -1) {
         printStringWithHeader("ERROR:", "opening file");
@@ -41,7 +49,7 @@ void openFile(const char *filename, int *fd) {
 
 //PRINT ON CONSOLE-----------------------------------------------------------------------------
 
-void printStringWithHeader(const char* text_, const char* string_) {
+void printStringWithHeader( char* text_,  char* string_) {
     char *buffer;
     int size = asprintf(&buffer, "%s %s\n", text_ ,string_);
     if (size == -1) {
@@ -53,7 +61,7 @@ void printStringWithHeader(const char* text_, const char* string_) {
     free(buffer);
 }
 
-void printString(const char* text_) {
+void printString( char* text_) {
     char *buffer;
     int size = asprintf(&buffer, "%s", text_ );
     if (size == -1) {
@@ -65,7 +73,7 @@ void printString(const char* text_) {
     free(buffer);
 }
 
-void printInt(const char* text_, const int int_) {
+void printInt( char* text_,  int int_) {
     char *buffer;
     int size = asprintf(&buffer, "%s %d\n", text_ ,int_);
     if (size == -1) {
@@ -145,6 +153,7 @@ int connectToServer(char *ip, int port) {
     // Connect to the server
     if (connect(serverFd, (void *) &serverSock, sizeof(serverSock)) < 0) {
         printString("\nERROR: CONECTION");
+
         exit(EXIT_FAILURE);
     }else{
 		printString("\n STABLISHING CONNECTION... ");
@@ -207,7 +216,7 @@ void freeFrame(Frame * frame){
     free(frame->data);
 }
 
-char * createFrame(uint8_t type, const char *header, const char *data) {
+char * createFrame(uint8_t type,  char *header,  char *data) {
     char *frame = (char *)malloc(256);
     int headerCounter = 0;
     int dataCounter = 0;
@@ -269,8 +278,153 @@ int readFrame(int socketFd, Frame * frame) {
     return 1;
 }
 
+//DOCUMENTATION SENDING FRAMES------------------------------------------------------------
+#define MAX_FRAME_SIZE 256
+
+//---Poole → Discovery NEW CONNECTION
+void sendNewConnectionPooleDiscovery(int socketFd,  char * data) {
+    char * frameToSend = createFrame(0x01, "NEW_POOLE", data);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
 
 
+void sendOkConnectionDiscoveryPoole(int socketFd) {
+    char * frameToSend = createFrame(0x01, "CON_OK", NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendKoConnectionDiscoveryPoole(int socketFd) {
+    char * frameToSend = createFrame(0x01, "CON_KO", NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+//---Bowman → Discovery NEW CONNECTION
+void sendNewConnectionBowmanDiscovery(int socketFd,  char * data) {
+    char * frameToSend = createFrame(0x01, "NEW_BOWMAN", data);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+void sendOkConnectionDiscoveryBowman(int socketFd, char * data) {
+    char * frameToSend = createFrame(0x01, "CON_OK", data);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendKoConnectionDiscoveryBowman(int socketFd) {
+    char * frameToSend = createFrame(0x01, "CON_KO", NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+//---Bowman → Poole NEW CONNECTION
+void sendNewConnectionBowmanPoole(int socketFd,  char * data) {
+    char * frameToSend = createFrame(0x01, "NEW_BOWMAN", data);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+void sendOkConnectionPooleBowman(int socketFd) {
+    char * frameToSend = createFrame(0x01, "CON_OK", NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendKoConnectionPooleBowman(int socketFd) {
+    char * frameToSend = createFrame(0x01, "CON_KO", NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+//----LIST SONGS 
+void listSongs(int socketFd) {
+    char * frameToSend = createFrame(0x02, "LIST_SONGS", NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendSongsResponse(int socketFd,  char * songs) {
+    char * frameToSend = createFrame(0x02, "SONGS_RESPONSE", songs);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+//---LIST PLAYLISTS 
+void listPlaylists(int socketFd) {
+    char * frameToSend = createFrame(0x02, "LIST_PLAYLISTS", NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendPlaylistsResponse(int socketFd,  char * playlists) {
+    char * frameToSend = createFrame(0x02, "SONGS_RESPONSE", playlists);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void downloadSong(int socketFd,  char * songName) {
+    char * frameToSend = createFrame(0x03, "DOWNLOAD_SONG", songName);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void downloadPlaylist(int socketFd,  char * playlistName) {
+    char * frameToSend = createFrame(0x03, "DOWNLOAD_LIST", playlistName);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendFileInfo(int socketFd,  char * fileInfo) {
+    char * frameToSend = createFrame(0x04, "NEW_FILE", fileInfo);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendFileData(int socketFd,  char * fileData) {
+    char * frameToSend = createFrame(0x04, "FILE_DATA", fileData);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendCheckResult(int socketFd,  char * result) {
+    char * frameToSend = createFrame(0x05, result, NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendLogout(int socketFd,  char * userName) {
+    char * frameToSend = createFrame(0x06, "EXIT", userName);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendLogoutResponse(int socketFd,  char * result) {
+    char * frameToSend = createFrame(0x06, result, NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+void sendUnknownFrame(int socketFd) {
+    char * frameToSend = createFrame(0x07, "UNKNOWN", NULL);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
 
 
 

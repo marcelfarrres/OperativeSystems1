@@ -34,8 +34,6 @@ void ctrl_C_function() {
     }
     free(sockets);
     
-   
-    
 
     printStringWithHeader("    .", " ");
     printStringWithHeader("     ...All memory freed...", "\n\nReady to EXIT this DISCOVERY Process.");
@@ -47,17 +45,15 @@ void ctrl_C_function() {
 //DISCOVERY SOCKET FUCNCTIONS-----------------------------------------------------------------
 
 void socketDisconnectedDiscovery(int socket_){
-    // If readFrame returns 0 or a negative value, it indicates the socket is closed or an error occurred
+    
         printInt("\nSocket closed: ", socket_);
-
-        // Remove the socket from the set and array
+  
         FD_CLR(socket_, &setOfSockFd);
         close(socket_);
-
-        // Find and remove the socket from the sockets array
+       
         for (int i = 0; i < numberOfSockets; i++) {
             if (sockets[i] == socket_) {
-                // Shift remaining sockets
+                
                 for (int j = i; j < numberOfSockets - 1; j++) {
                     sockets[j] = sockets[j + 1];
                 }
@@ -76,24 +72,17 @@ void handleNewMessage(int messageSocket) {
         socketDisconnectedDiscovery(messageSocket);
         
     }else{
-        printInt("\nMESSAGE FROM:", messageSocket);
-        printInt("\nTYPE:", frame.type);
-        printInt("\nHEADERLEnght:", frame.headerLength);
-        printStringWithHeader("\nHEADER:", frame.header);
-        printStringWithHeader("\nDATA:", frame.data);
-
-       
-
-
-
+        printInt("MESSAGE FROM:", messageSocket);
+        printInt("TYPE:", frame.type);
+        printInt("HEADERLEnght:", frame.headerLength);
+        printStringWithHeader("HEADER:", frame.header);
+        printStringWithHeader("DATA:", frame.data);
 
         
-
+       
 
     }
 }
-
-
 
 //-----------------------------------------------------------------
 
