@@ -86,10 +86,24 @@ void printInt( char* text_,  int int_) {
 }
 
 void printFrame(Frame * frame){
-    printInt("TYPE:", frame->type);
-    printInt("HEADERLEnght:", frame->headerLength);
-    printStringWithHeader("HEADER:", frame->header);
-    printStringWithHeader("DATA:", frame->data);
+	printString("\n_______________________________\n");
+	printString("|___________FRAME_____________|\n");
+    printInt("| TYPE:", frame->type);
+    printInt("| HEADERLEnght:", frame->headerLength);
+    printStringWithHeader("| HEADER:", frame->header);
+    printStringWithHeader("|_DATA:_", frame->data);
+    printString("\n");
+}
+
+void printPooleServer(PooleServer *server) {
+    printString("\n_________________________________\n");
+    printString("|_________POOLE SERVER__________|\n");
+    printStringWithHeader("| NAME:            ", server->name);
+    printInt("| PORT:            ", server->port);
+    printStringWithHeader("| IP:              ", server->ip);
+    printInt("|_NUM_CONNECTIONS:_", server->numConnections);
+    printString("\n");
+
 }
 
 //READ FROM FILES-----------------------------------------------------------------------------
@@ -261,14 +275,15 @@ char * createFrame(uint8_t type,  char *header,  char *data) {
 }
 
 int readFrame(int socketFd, Frame * frame) {
+	//free(frame->data);
+    //free(frame->header);
+
     char buffer[256];
     int numBytes = read(socketFd, buffer, 256);
 
     if (numBytes <= 0) {
         return numBytes;
     }
-
-    //freeFrame(frame);
 
     frame->type = buffer[0];
     frame->headerLength = (buffer[2] << 8) | buffer[1];
@@ -360,14 +375,14 @@ void sendNewConnectionPooleDiscovery(int socketFd,  char * data) {
 
 
 void sendOkConnectionDiscoveryPoole(int socketFd) {
-    char * frameToSend = createFrame(0x01, "CON_OK", NULL);
+    char * frameToSend = createFrame(0x01, "CON_OK", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
 
 
 void sendKoConnectionDiscoveryPoole(int socketFd) {
-    char * frameToSend = createFrame(0x01, "CON_KO", NULL);
+    char * frameToSend = createFrame(0x01, "CON_KO", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
@@ -387,7 +402,7 @@ void sendOkConnectionDiscoveryBowman(int socketFd, char * data) {
 
 
 void sendKoConnectionDiscoveryBowman(int socketFd) {
-    char * frameToSend = createFrame(0x01, "CON_KO", NULL);
+    char * frameToSend = createFrame(0x01, "CON_KO", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
@@ -400,21 +415,21 @@ void sendNewConnectionBowmanPoole(int socketFd,  char * data) {
 }
 
 void sendOkConnectionPooleBowman(int socketFd) {
-    char * frameToSend = createFrame(0x01, "CON_OK", NULL);
+    char * frameToSend = createFrame(0x01, "CON_OK", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
 
 
 void sendKoConnectionPooleBowman(int socketFd) {
-    char * frameToSend = createFrame(0x01, "CON_KO", NULL);
+    char * frameToSend = createFrame(0x01, "CON_KO", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
 
 //----LIST SONGS 
 void listSongs(int socketFd) {
-    char * frameToSend = createFrame(0x02, "LIST_SONGS", NULL);
+    char * frameToSend = createFrame(0x02, "LIST_SONGS", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
@@ -428,7 +443,7 @@ void sendSongsResponse(int socketFd,  char * songs) {
 
 //---LIST PLAYLISTS 
 void listPlaylists(int socketFd) {
-    char * frameToSend = createFrame(0x02, "LIST_PLAYLISTS", NULL);
+    char * frameToSend = createFrame(0x02, "LIST_PLAYLISTS", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
@@ -470,7 +485,7 @@ void sendFileData(int socketFd,  char * fileData) {
 
 
 void sendCheckResult(int socketFd,  char * result) {
-    char * frameToSend = createFrame(0x05, result, NULL);
+    char * frameToSend = createFrame(0x05, result, "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
@@ -484,14 +499,14 @@ void sendLogout(int socketFd,  char * userName) {
 
 
 void sendLogoutResponse(int socketFd,  char * result) {
-    char * frameToSend = createFrame(0x06, result, NULL);
+    char * frameToSend = createFrame(0x06, result, "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
 
 
 void sendUnknownFrame(int socketFd) {
-    char * frameToSend = createFrame(0x07, "UNKNOWN", NULL);
+    char * frameToSend = createFrame(0x07, "UNKNOWN", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }

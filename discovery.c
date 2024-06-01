@@ -8,6 +8,7 @@ int *sockets;
 int numberOfSockets;
 Frame frame; 
 PooleServer ** listOfPooleServers;
+int numberOfPooleServers;
 char** separatedData;
 int numberOfData = 0;
 
@@ -42,11 +43,30 @@ void ctrl_C_function() {
 
     freeSeparatedData(&separatedData, &numberOfData);
 
+    for (int i = 0; i < numberOfPooleServers; i++) {
+        free(listOfPooleServers[i]->name);
+        free(listOfPooleServers[i]->ip);
+        free(listOfPooleServers[i]);
+    }
+    free(listOfPooleServers);
+
     printStringWithHeader("    .", " ");
     printStringWithHeader("     ...All memory freed...", "\n\nReady to EXIT this DISCOVERY Process.");
     
     exit(EXIT_SUCCESS);
 } 
+
+//POOLE SERVERS FUCNTIONS--------------------------------------------------------------------
+
+void addPooleServerToTheList(PooleServer * newServer){
+
+    numberOfPooleServers++;
+    listOfPooleServers = realloc(listOfPooleServers, sizeof(PooleServer*) * numberOfPooleServers);
+    listOfPooleServers[numberOfPooleServers - 1] = newServer;
+
+}
+
+
 
 
 
@@ -82,36 +102,19 @@ void handleNewMessage(int messageSocket) {
         
     }else if(strcmp(frame.header, "NEW_POOLE") == 0){
         printFrame(&frame);
-        
-        
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
 
-        //numberOfData = separateData(frame.data, &separatedData, numberOfData);
-
-
+        PooleServer *newServer = (PooleServer *) malloc(sizeof(PooleServer));
         
-
-        
-
-
-        
-        
+        newServer->name = strdup(separatedData[0]);
+        newServer->ip = strdup(separatedData[1]);
+        newServer->port = atoi(separatedData[2]);
+        newServer->numConnections = 0;
+        addPooleServerToTheList(newServer);
+        sendOkConnectionDiscoveryPoole(messageSocket);
+        printString("Poole server added!\n");
             
-        
-            /*
-            PooleServer *newServer;
-            newServer = (PooleServer *) malloc(sizeof(PooleServer));
-
-            newServer->name = strdup(info[0]);
-            newServer->ip = strdup(info[1]);
-            newServer->port = atoi(info[2]);
-            newServer->connnections = 0;
-                        servers = realloc(servers, sizeof(PooleServer) * (num_servers + 1));
-            servers[num_servers] = newServer;
-            num_servers++;
-                        sendMessage(sockfd, 0x01, strlen(HEADER_CON_OK), HEADER_CON_OK, "");
-            printf("New poole server added\n");
-            */
+        printPooleServer(listOfPooleServers[0]);
                            
     }
     
@@ -125,6 +128,7 @@ int main(int argc, char *argv[]) {
     int discoveryFd = -1; //DISCOVERY FILE
     numberOfSockets = 0;
     initFrame(&frame);
+    numberOfPooleServers = 0;
     
 
     //SIGNAL ctrl C

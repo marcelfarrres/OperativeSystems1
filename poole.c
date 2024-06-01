@@ -4,24 +4,8 @@
 Poole poole;
 int pooleFd = -1; //POOLE FILE
 int discoverySocketFd = -1;
+Frame frame; 
 
-
-
-
-void removeAmp(char *buffer, int *Amp) {
-    int length = strlen(buffer);
-
-    for (int i = 0; i < length; i++) {
-        if (buffer[i] == '&') {
-            (*Amp)++;
-        } else {
-            buffer[i - (*Amp)] = buffer[i];
-        }
-    }
-
-    buffer[length - (*Amp)] = '\0';
-    (*Amp)++;
-}
 
 //SIGNALS PHASE-----------------------------------------------------------------
 void ctrl_C_function() {
@@ -34,6 +18,9 @@ void ctrl_C_function() {
 
     close(pooleFd);
     close(discoverySocketFd);
+
+    free(frame.data);
+    free(frame.header);
 
     printStringWithHeader(" .", " ");
     printStringWithHeader("  .", " ");
@@ -48,7 +35,7 @@ void ctrl_C_function() {
 
 int main(int argc, char *argv[]) {
     //AUXILIAR VARIABLES
-
+    initFrame(&frame);
     //SIGNAL ctrl C
     signal(SIGINT, ctrl_C_function);
 
@@ -89,7 +76,14 @@ int main(int argc, char *argv[]) {
     sendNewConnectionPooleDiscovery(discoverySocketFd, miniBuffer);
     free(miniBuffer);
 
-   
+    int result = readFrame(discoverySocketFd, &frame);
+    if (result <= 0) {
+        printString("\nERROR: OK not receieved\n");
+        
+    }else if(strcmp(frame.header, "CON_OK") == 0){
+        printFrame(&frame);
+        printString("\nConnection stablished, waiting Bowman connections!\n");
+    }
 
     sleep(100);
     return 0;

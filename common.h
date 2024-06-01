@@ -40,7 +40,7 @@ void printStringWithHeader(  char* text_,  char* string_);
 void printString( char* text_);
 void printInt( char* text_,  int int_);
 void printFrame(Frame * frame);
-
+void printPooleServer(PooleServer *server);
 
 //READ FROM FILES-----------------------------------------------------------------------------
 void readStringFromFile(int fd, char delimiter, char ** destination);
