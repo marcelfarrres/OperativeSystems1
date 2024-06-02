@@ -1,37 +1,53 @@
 ALL_FLAGS = -Wall -Wextra -pthread
 NO_FLAGS = -Wall
 
-b: 
+b1: 
 	gcc -g bowman.c common.c -o bowman $(ALL_FLAGS)
-	./bowman bowman.dat
+	./bowman data/bowman1.dat
 
-p: 
+b2: 
+	gcc -g bowman.c common.c -o bowman $(ALL_FLAGS)
+	./bowman data/bowman2.dat
+
+p1: 
 	gcc -g poole.c common.c -o poole $(ALL_FLAGS)
-	./poole poole.dat
+	./poole data/poole1.dat
 
 p2: 
 	gcc -g poole.c common.c -o poole $(ALL_FLAGS)
-	./poole poole2.txt
+	./poole data/poole2.dat
 
 d: 
 	gcc -g discovery.c common.c -o discovery $(ALL_FLAGS)
-	./discovery discovery.dat
+	./discovery data/discovery.dat
 
 
 
 
-vb:
+
+
+vb1: 
 	gcc -g bowman.c common.c -o bowman $(ALL_FLAGS)
-	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./bowman bowman.dat
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./bowman data/bowman1.dat
 
-vp:
+vb2: 
+	gcc -g bovwman.c common.c -o bowman $(ALL_FLAGS)
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./bowman data/bowman2.dat
+
+vb3: 
+	gcc -g bovwman.c common.c -o bowman $(ALL_FLAGS)
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./bowman data/bowman2.dat	
+
+vp1: 
 	gcc -g poole.c common.c -o poole $(ALL_FLAGS)
-	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./poole poole.dat
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./poole data/poole1.dat
 
-vp2:
+vp2: 
 	gcc -g poole.c common.c -o poole $(ALL_FLAGS)
-	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./poole poole2.txt
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./poole data/poole2.dat
 
-vd:
+vd: 
 	gcc -g discovery.c common.c -o discovery $(ALL_FLAGS)
-	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./discovery discovery.dat
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./discovery data/discovery.dat
+
+

@@ -9,6 +9,8 @@ int *sockets;
 int numberOfSockets;
 Frame frame; 
 int thisPooleFd;
+char** separatedData;
+int numberOfData = 0;
 
 struct sockaddr_in c_addr;
 socklen_t c_len = sizeof (c_addr);
@@ -31,6 +33,8 @@ void ctrl_C_function() {
         close(sockets[i]);
     }
     free(sockets);
+
+    freeSeparatedData(&separatedData, &numberOfData);
 
     free(frame.data);
     free(frame.header);
@@ -157,7 +161,19 @@ int main(int argc, char *argv[]) {
                     FD_SET(newBowman, &setOfSockFd);
 
                 } else {
-                    //handleNewMessage(i);
+                    //WE HAVE A MESSAGE!---------------------------------------------------------------------
+                    int result = readFrame(i, &frame);
+                    if (result <= 0) {
+                        socketDisconnectedPoole(i);
+                    }else if(strcmp(frame.header, "NEW_BOWMAN") == 0){
+                        printFrame(&frame);
+                        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+                        printStringWithHeader("New Bowman connection:", separatedData[0]);
+                        sendOkConnectionPooleBowman(i);
+
+                    
+                        
+                    }
                 }
             }
         }

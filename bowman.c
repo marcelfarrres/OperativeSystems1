@@ -241,11 +241,31 @@ int main(int argc, char *argv[]){
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
 
         char * auxIp = strdup(separatedData[1]);
+
         
         pooleSocketFd = connectToServer(auxIp, atoi(separatedData[2]));
-
         free(auxIp);
 
+        sendNewConnectionBowmanPoole(pooleSocketFd, bowman.name);
+
+        int result = readFrame(pooleSocketFd, &frame);
+        if (result <= 0) {
+            printString("\nERROR: OK not receieved\n");
+            ctrl_C_function();
+            
+        }else if(strcmp(frame.header, "CON_KO") == 0){
+            printString("\nERROR:Poole KO CONNECTION.\n");
+            printFrame(&frame);
+            ctrl_C_function();
+    
+        }else if(strcmp(frame.header, "CON_OK") != 0){
+            printString("\nERROR: not what we were expecting\n");
+            printFrame(&frame);
+            ctrl_C_function();
+        }else{
+            printFrame(&frame);
+            printString("\nConfirmation received from Poole!\n");
+        }
     }
     menu();
     return 0;
