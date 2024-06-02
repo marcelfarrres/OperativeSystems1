@@ -28,6 +28,10 @@ vp:
 	gcc -g poole.c common.c -o poole $(ALL_FLAGS)
 	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./poole poole.dat
 
+vp2:
+	gcc -g poole.c common.c -o poole $(ALL_FLAGS)
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./poole poole2.txt
+
 vd:
 	gcc -g discovery.c common.c -o discovery $(ALL_FLAGS)
 	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./discovery discovery.dat
