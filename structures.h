@@ -30,6 +30,7 @@ typedef struct{
     int port;
     char *ip;
     int numConnections;
+    char** bowmans;
 }PooleServer;
 
 typedef struct{

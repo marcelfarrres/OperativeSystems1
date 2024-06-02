@@ -102,6 +102,9 @@ void printPooleServer(PooleServer *server) {
     printInt("| PORT:            ", server->port);
     printStringWithHeader("| IP:              ", server->ip);
     printInt("|_NUM_CONNECTIONS:_", server->numConnections);
+	for (int i = 0; i < server->numConnections; i++) {
+            printStringWithHeader("| 1):", (server->bowmans)[i]);
+        }
     printString("\n");
 
 }
@@ -268,15 +271,15 @@ char * createFrame(uint8_t type,  char *header,  char *data) {
     int pad = 256 - totalLength;
 
     frame[totalLength] = '\0'; 
-    memset(&frame[totalLength + 1], 0, pad); 
+    memset(&frame[totalLength], 0, pad); 
 
     
     return frame;
 }
 
 int readFrame(int socketFd, Frame * frame) {
-	//free(frame->data);
-    //free(frame->header);
+	freeFrame(frame);
+    initFrame(frame);
 
     char buffer[256];
     int numBytes = read(socketFd, buffer, 256);
@@ -290,13 +293,13 @@ int readFrame(int socketFd, Frame * frame) {
 
     frame->header = (char *)malloc(((frame->headerLength) + 1) * sizeof(char));
     memcpy(frame->header, buffer + 3, frame->headerLength);
-	(frame->header)[((frame->headerLength) + 1)] = '\0';
+	(frame->header)[((frame->headerLength))] = '\0';
 
     int dataLength = numBytes - (3 + frame->headerLength); 
    
     frame->data = (char *)malloc(dataLength * sizeof(char));
     memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
-    frame->data[dataLength] = '\0'; 
+    (frame->data)[dataLength - 1] = '\0'; 
 
     return 1;
 }

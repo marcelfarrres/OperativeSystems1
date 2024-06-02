@@ -45,6 +45,10 @@ void ctrl_C_function() {
     freeSeparatedData(&separatedData, &numberOfData);
 
     for (int i = 0; i < numberOfPooleServers; i++) {
+        for (int j = 0; j < listOfPooleServers[i]->numConnections; j++) {
+            free(listOfPooleServers[i]->bowmans[j]);
+        }
+        free(listOfPooleServers[i]->bowmans);
         free(listOfPooleServers[i]->name);
         free(listOfPooleServers[i]->ip);
         free(listOfPooleServers[i]);
@@ -95,13 +99,16 @@ void socketDisconnectedDiscovery(int socket_){
 }
 
 void handleNewMessage(int messageSocket) {
-    
+
+    //freeFrame(&frame);
+    //initFrame(&frame);
 
     int result = readFrame(messageSocket, &frame);
     if (result <= 0) {
         socketDisconnectedDiscovery(messageSocket);
         
     }else if(strcmp(frame.header, "NEW_POOLE") == 0){
+        
         printFrame(&frame);
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
 
@@ -111,12 +118,18 @@ void handleNewMessage(int messageSocket) {
         newServer->ip = strdup(separatedData[1]);
         newServer->port = atoi(separatedData[2]);
         newServer->numConnections = 0;
+        newServer->bowmans = NULL;
         addPooleServerToTheList(newServer);
         sendOkConnectionDiscoveryPoole(messageSocket);
         printString("Poole server added!\n");
             
         printPooleServer(listOfPooleServers[numberOfPooleServers - 1]);
                            
+    }else if(strcmp(frame.header, "NEW_BOWMAN") == 0){
+        printFrame(&frame);
+        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+        //TODO: Select the Poole to send the data and store the name inside and send the frame to the bowman with the poole port and ip
+        
     }
     
 }

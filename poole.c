@@ -109,6 +109,8 @@ int main(int argc, char *argv[]) {
     sendNewConnectionPooleDiscovery(discoverySocketFd, miniBuffer);
     free(miniBuffer);
 
+    //freeFrame(&frame);
+    //initFrame(&frame);
     int result = readFrame(discoverySocketFd, &frame);
     if (result <= 0) {
         printString("\nERROR: OK not receieved\n");
@@ -121,11 +123,11 @@ int main(int argc, char *argv[]) {
         
     }else{
         printFrame(&frame);
-        printString("\nConnection stablished, waiting Bowman connections!\n");
+        printString("\nConfirmation received from Discovery!\n");
 
         thisPooleFd = createServer(poole.portPoole);
 
-        printString("\nPOOLE SERVER CREATED, waiting for bowman frames..\n");
+        printString("\nPOOLE SERVER CREATED, waiting for bowman connections..\n");
 
 
         FD_ZERO(&setOfSockFd);

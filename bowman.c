@@ -178,7 +178,8 @@ int main(int argc, char *argv[]){
     
     removeAmp(buffer, &Amp);
 
-    bowman.name = malloc((length - Amp ) * sizeof(char) );
+    bowman.name =(char *) calloc((length - Amp + 2 ), sizeof(char) );
+
     strcpy(bowman.name, buffer);
     bowman.name[length - Amp] = '\0';
     free(buffer);
