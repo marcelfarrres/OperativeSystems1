@@ -109,8 +109,7 @@ int main(int argc, char *argv[]) {
     sendNewConnectionPooleDiscovery(discoverySocketFd, miniBuffer);
     free(miniBuffer);
 
-    //freeFrame(&frame);
-    //initFrame(&frame);
+    
     int result = readFrame(discoverySocketFd, &frame);
     if (result <= 0) {
         printString("\nERROR: OK not receieved\n");

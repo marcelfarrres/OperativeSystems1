@@ -3,6 +3,7 @@
 
 Bowman bowman;
 int discoverySocketFd = -1;
+Frame frame;
 
 
 
@@ -31,6 +32,9 @@ void ctrl_C_function(){
     free(bowman.name);
     free(bowman.ipDiscovery);
     free(bowman.folder);
+
+    free(frame.data);
+    free(frame.header);
 
     printStringWithHeader(" ."," ");
     //sleep(1);
@@ -167,6 +171,7 @@ int main(int argc, char *argv[]){
     char *buffer; //Buffer
     int Amp = 0; //Number of &
     int bowFd = -1; //BOWMAN FILE
+    initFrame(&frame);
     
     //SIGNAL ctrl C
     signal(SIGINT, ctrl_C_function);
@@ -206,8 +211,26 @@ int main(int argc, char *argv[]){
 
     sendNewConnectionBowmanDiscovery(discoverySocketFd, bowman.name);
     
-    
-    
+    int result = readFrame(discoverySocketFd, &frame);
+    if (result <= 0) {
+        printString("\nERROR: OK not receieved\n");
+        ctrl_C_function();
+        
+    }else if(strcmp(frame.header, "CON_KO") == 0){
+        printString("\nERROR: There were no Poole servers connected.\n");
+        printFrame(&frame);
+        ctrl_C_function();
+
+    }else if(strcmp(frame.header, "CON_OK") != 0){
+        printString("\nERROR: not what we were expecting\n");
+        printFrame(&frame);
+        ctrl_C_function();
+        
+    }else{
+        printFrame(&frame);
+        printString("\nConfirmation received from Discovery!\n");
+        
+    }
     menu();
     return 0;
 }

@@ -71,8 +71,39 @@ void addPooleServerToTheList(PooleServer * newServer){
 
 }
 
+PooleServer* findPooleServerWithLeastConnections() {
+    if (numberOfPooleServers == 0) {
+        return NULL; // Return NULL if the list is empty
+    }
 
+    PooleServer *leastConnectionsServer = NULL;
+    int leastConnections = 999999;
 
+    for (int i = 0; i < numberOfPooleServers; i++) {
+        if (listOfPooleServers[i]->numConnections < leastConnections) {
+            leastConnections = listOfPooleServers[i]->numConnections;
+            leastConnectionsServer = listOfPooleServers[i];
+        }
+    }
+
+    return leastConnectionsServer;
+}
+
+void addBowman(PooleServer *server, const char *newBowman) {
+  
+    server->bowmans = realloc(server->bowmans, sizeof(char*) * (server->numConnections + 1));
+    if (server->bowmans == NULL) {
+        printString("Failed to allocate memory for bowmans array\n");
+        return;
+    }
+
+    server->bowmans[server->numConnections] = strdup(newBowman);
+    if (server->bowmans[server->numConnections] == NULL) {
+        printString("Failed to allocate memory for new bowman\n");
+        return;
+    }
+    server->numConnections++;
+}
 
 
 
@@ -179,6 +210,7 @@ int main(int argc, char *argv[]) {
                     numberOfSockets++;
                     FD_SET(newBowman, &setOfSockFd);
                 } else {
+                    //WE HAVE A MESSAGE!---------------------------------------------------------------------
                     int result = readFrame(i, &frame);
                     if (result <= 0) {
                         socketDisconnectedDiscovery(i);
@@ -203,6 +235,23 @@ int main(int argc, char *argv[]) {
                         printFrame(&frame);
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
                         printStringWithHeader("separatedData[0]:", separatedData[0]);
+                        if(numberOfPooleServers == 0){
+                            printString("ERROR: No Poole Servers available right now... ");
+                            sendKoConnectionDiscoveryBowman(i);
+                            socketDisconnectedDiscovery(i);
+                        }else{
+                            printString("\nConnection to a Poole server...\n");
+                            PooleServer * pooleToConnect = findPooleServerWithLeastConnections();
+                            addBowman(pooleToConnect, separatedData[0]);
+                             
+                            printPooleServer(pooleToConnect);
+
+                            char *miniBuffer;
+                            asprintf(&miniBuffer, "%s&%s&%d", pooleToConnect->name, pooleToConnect->ip, pooleToConnect->port);
+                            sendOkConnectionDiscoveryBowman(i, miniBuffer);
+                            free(miniBuffer);
+
+                        }
                         //TODO: Select the Poole to send the data and store the name inside and send the frame to the bowman with the poole port and ip
 
                     }
