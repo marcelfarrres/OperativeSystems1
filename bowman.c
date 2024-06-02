@@ -3,6 +3,11 @@
 
 Bowman bowman;
 int discoverySocketFd = -1;
+int pooleSocketFd = -1;
+char** separatedData;
+int numberOfData = 0;
+
+
 Frame frame;
 
 
@@ -35,7 +40,10 @@ void ctrl_C_function(){
 
     free(frame.data);
     free(frame.header);
+    freeSeparatedData(&separatedData, &numberOfData);
 
+    close(pooleSocketFd);
+    close(discoverySocketFd);
     printStringWithHeader(" ."," ");
     //sleep(1);
 
@@ -229,7 +237,15 @@ int main(int argc, char *argv[]){
     }else{
         printFrame(&frame);
         printString("\nConfirmation received from Discovery!\n");
+
+        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+
+        char * auxIp = strdup(separatedData[1]);
         
+        pooleSocketFd = connectToServer(auxIp, atoi(separatedData[2]));
+
+        free(auxIp);
+
     }
     menu();
     return 0;
