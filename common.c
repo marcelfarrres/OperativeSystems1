@@ -91,7 +91,7 @@ void printFrame(Frame * frame){
     printInt("| TYPE:", frame->type);
     printInt("| HEADERLEnght:", frame->headerLength);
     printStringWithHeader("| HEADER:", frame->header);
-    printStringWithHeader("|_DATA:_", frame->data);
+    printStringWithHeader("|_DATA:", frame->data);
     printString("\n");
 }
 

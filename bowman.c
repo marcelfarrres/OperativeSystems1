@@ -2,6 +2,8 @@
 #include "structures.h"
 
 Bowman bowman;
+int discoverySocketFd = -1;
+
 
 
 
@@ -198,6 +200,12 @@ int main(int argc, char *argv[]){
     printInt("Bowman portDiscovery:",bowman.portDiscovery);
 
     sleep(1);
+
+    discoverySocketFd = connectToServer(bowman.ipDiscovery, bowman.portDiscovery);
+    printInt("discoverySocketFd:", discoverySocketFd);
+
+    sendNewConnectionBowmanDiscovery(discoverySocketFd, bowman.name);
+    
     
     
     menu();
