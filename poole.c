@@ -204,6 +204,14 @@ int main(int argc, char *argv[]) {
 
                     
                         
+                    }else if(strcmp(frame.header, "LIST_SONGS") == 0){
+                        printFrame(&frame);
+                        //We need to send folder/songs 
+                        
+                        sendLogoutResponse(i);
+
+                    
+                        
                     }
                 }
             }

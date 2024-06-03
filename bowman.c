@@ -127,11 +127,37 @@ void manageLogOut(){
 }
 
 void manageLogIn(){
+    discoverySocketFd = connectToServer(bowman.ipDiscovery, bowman.portDiscovery);
+    printInt("discoverySocketFd:", discoverySocketFd);
+
+    sendNewConnectionBowmanDiscovery(discoverySocketFd, bowman.name);
+    
+    int result = readFrame(discoverySocketFd, &frame);
+    if (result <= 0) {
+        printString("\nERROR: OK not receieved\n");
+        ctrl_C_function();
+        
+    }else if(strcmp(frame.header, "CON_KO") == 0){
+        printString("\nERROR: There were no Poole servers connected.\n");
+        printFrame(&frame);
+        ctrl_C_function();
+
+    }else if(strcmp(frame.header, "CON_OK") != 0){
+        printString("\nERROR: not what we were expecting\n");
+        printFrame(&frame);
+        ctrl_C_function();
+        
+    }else{
+        printFrame(&frame);
+        printString("\nConfirmation received from Discovery!\n");
+
+        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+    }
     char * auxIp = strdup(separatedData[1]);
     pooleSocketFd = connectToServer(auxIp, atoi(separatedData[2]));
     free(auxIp);
     sendNewConnectionBowmanPoole(pooleSocketFd, bowman.name);
-    int result = readFrame(pooleSocketFd, &frame);
+    result = readFrame(pooleSocketFd, &frame);
     if (result <= 0) {
         printString("\nERROR: OK not receieved\n");
         ctrl_C_function();
@@ -148,8 +174,14 @@ void manageLogIn(){
     }else{
         printFrame(&frame);
         printString("\nConfirmation received from Poole!\n");
-        }
+    }
 }
+
+void manageListSongs(){
+    sendListSongs(pooleSocketFd);
+    //int result = readFrame(pooleSocketFd, &frame);
+}
+
 
 
 void menu() {
@@ -214,6 +246,7 @@ void menu() {
             }
         } else if (numberOfWords == 2 && strcasecmp(input[0], "LIST") == 0 && strcasecmp(input[1], "SONGS") == 0) {
             if (connected) {
+                manageListSongs();
                 printString("There are 6 songs available for download:\n1. Macarena.mp3\n2. Walk_of_life.mp3\n3. Levels.mp3\n4. Less_is_more.mp3\n5. Stand_up.mp3\n6. Isla_nostalgia.mp3\n");
             } else {
                 printString("Cannot List Songs, you are not connected to HAL 9000\n");
@@ -286,32 +319,7 @@ int main(int argc, char *argv[]){
 
     sleep(1);
 
-    discoverySocketFd = connectToServer(bowman.ipDiscovery, bowman.portDiscovery);
-    printInt("discoverySocketFd:", discoverySocketFd);
-
-    sendNewConnectionBowmanDiscovery(discoverySocketFd, bowman.name);
     
-    int result = readFrame(discoverySocketFd, &frame);
-    if (result <= 0) {
-        printString("\nERROR: OK not receieved\n");
-        ctrl_C_function();
-        
-    }else if(strcmp(frame.header, "CON_KO") == 0){
-        printString("\nERROR: There were no Poole servers connected.\n");
-        printFrame(&frame);
-        ctrl_C_function();
-
-    }else if(strcmp(frame.header, "CON_OK") != 0){
-        printString("\nERROR: not what we were expecting\n");
-        printFrame(&frame);
-        ctrl_C_function();
-        
-    }else{
-        printFrame(&frame);
-        printString("\nConfirmation received from Discovery!\n");
-
-        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-    }
     menu();
     
     return 0;

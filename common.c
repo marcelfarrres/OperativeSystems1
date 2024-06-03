@@ -542,7 +542,7 @@ void sendKoConnectionPooleBowman(int socketFd) {
 }
 
 //----LIST SONGS 
-void listSongs(int socketFd) {
+void sendListSongs(int socketFd) {
     char * frameToSend = createFrame(0x02, "LIST_SONGS", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);

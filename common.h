@@ -80,7 +80,7 @@ void sendNewConnectionBowmanPoole(int socketFd,  char * data);
 void sendOkConnectionPooleBowman(int socketFd);
 void sendKoConnectionPooleBowman(int socketFd);
 
-void listSongs(int socketFd);
+void sendListSongs(int socketFd);
 void sendSongsResponse(int socketFd,  char * songs);
 
 void listPlaylists(int socketFd);
