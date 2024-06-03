@@ -14,3 +14,7 @@ Discovery.c:  WHY?
          →  &85330.0.1nke
 
 ----------------------------------------------------------------         
+
+crtf + shift + f = else if(strcmp(frame.header, "EXIT") == 0)
+
+I changed the body so I can differ from poole or bowman

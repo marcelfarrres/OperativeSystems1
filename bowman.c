@@ -33,7 +33,7 @@ void removeAmp(char *buffer,  int *Amp) {
 void ctrl_C_function(){
     printString("Closing Session..\n");
     if(pooleSocketFd > 0){
-        sendLogout(pooleSocketFd, bowman.name);
+        sendLogoutBowman(pooleSocketFd, bowman.name);
         int result = readFrame(pooleSocketFd, &frame);
         if (result <= 0) {
             printString("\nERROR: OK not receieved\n");
@@ -54,7 +54,7 @@ void ctrl_C_function(){
         }
     }
     if(discoverySocketFd > 0){
-        sendLogout(discoverySocketFd, bowman.name);
+        sendLogoutBowman(discoverySocketFd, bowman.name);
         int result = readFrame(discoverySocketFd, &frame);
         if (result <= 0) {
             printString("\nERROR: OK not receieved\n");
@@ -102,7 +102,7 @@ void ctrl_C_function(){
 void manageLogOut(){
     printString("Closing Session..\n");
     if(pooleSocketFd > 0){
-        sendLogout(pooleSocketFd, bowman.name);
+        sendLogoutBowman(pooleSocketFd, bowman.name);
         int result = readFrame(pooleSocketFd, &frame);
         if (result <= 0) {
             printString("\nERROR: OK not receieved\n");

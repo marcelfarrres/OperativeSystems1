@@ -94,7 +94,8 @@ void sendFileData(int socketFd,  char * fileData);
 
 void sendCheckResult(int socketFd,  char * result);
 
-void sendLogout(int socketFd,  char * userName);
+void sendLogoutBowman(int socketFd,  char * userName);
+void sendLogoutPoole(int socketFd,  char * userName);
 void sendLogoutResponse(int socketFd);
 
 void sendUnknownFrame(int socketFd);

@@ -70,6 +70,33 @@ void addPooleServerToTheList(PooleServer * newServer){
     listOfPooleServers[numberOfPooleServers - 1] = newServer;
 
 }
+void deletePooleServer(char *name) {
+    int i, j;
+
+    for (i = 0; i < numberOfPooleServers; i++) {
+        if (strcmp(listOfPooleServers[i]->name, name) == 0) {
+            // Free the memory allocated for the PooleServer
+            free(listOfPooleServers[i]->name);
+            free(listOfPooleServers[i]->ip);
+            for (j = 0; j < listOfPooleServers[i]->numConnections; j++) {
+                free(listOfPooleServers[i]->bowmans[j]);
+            }
+            free(listOfPooleServers[i]->bowmans);
+            free(listOfPooleServers[i]);
+
+            // Shift the remaining servers in the list
+            for (j = i; j < numberOfPooleServers - 1; j++) {
+                listOfPooleServers[j] = listOfPooleServers[j + 1];
+            }
+            
+            numberOfPooleServers--;
+            listOfPooleServers = realloc(listOfPooleServers, sizeof(PooleServer*) * numberOfPooleServers);
+            
+            
+        }
+    }
+
+}
 
 PooleServer* findPooleServerWithLeastConnections() {
     if (numberOfPooleServers == 0) {
@@ -104,7 +131,7 @@ void addBowman(PooleServer *server, const char *newBowman) {
     }
     server->numConnections++;
 }
-void removeConnection(const char *name) {
+void removeBowmanConnection(const char *name) {
     for (int s = 0; s < numberOfPooleServers; s++) {
         PooleServer *server = listOfPooleServers[s];
         for (int i = 0; i < server->numConnections; i++) {
@@ -283,16 +310,22 @@ int main(int argc, char *argv[]) {
                             sendOkConnectionDiscoveryBowman(i, miniBuffer);
                             free(miniBuffer);
                         }
-                    }else if(strcmp(frame.header, "EXIT") == 0){
+                    }else if(strcmp(frame.header, "EXIT_BOWMAN") == 0){
                         printFrame(&frame);
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
                         printStringWithHeader("This Bowman Clossing Session: ", separatedData[0]);
-                        removeConnection(separatedData[0]);
+                        removeBowmanConnection(separatedData[0]);
                         printAllPooleServers(listOfPooleServers, numberOfPooleServers);
                         sendLogoutResponse(i);
                         printString("\n-\n");
-                        
-
+                    }else if(strcmp(frame.header, "EXIT_POOLE") == 0){
+                        printFrame(&frame);
+                        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+                        printStringWithHeader("This Poole Clossing Session: ", separatedData[0]);
+                        deletePooleServer(separatedData[0]);
+                        printAllPooleServers(listOfPooleServers, numberOfPooleServers);
+                        sendLogoutResponse(i);
+                        printString("\n-\n");
                     }
     
                 }

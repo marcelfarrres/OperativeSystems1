@@ -18,7 +18,28 @@ socklen_t c_len = sizeof (c_addr);
 
 //SIGNALS PHASE-----------------------------------------------------------------
 void ctrl_C_function() {
+    if(discoverySocketFd > 0){
+        sendLogoutPoole(discoverySocketFd, poole.name);
+        int result = readFrame(discoverySocketFd, &frame);
+        if (result <= 0) {
+            printString("\nERROR: OK not receieved\n");
+            
+            
+        }else if(strcmp(frame.header, "CONKO") == 0){
+            printString("\nERROR:Discovery KO CONNECTION.\n");
+            printFrame(&frame);
+            
+    
+        }else if(strcmp(frame.header, "CONOK") != 0){
+            printString("\nERROR: not what we were expecting\n");
+            printFrame(&frame);
+            
+        }else{
+            printFrame(&frame);
+            printString("\nConfirmation received from Discovery! Closing session..\n");
+        }
 
+    }
     
     printStringWithHeader("^\nFreeing memory...", " ");
     printStringWithHeader(".", " ");
@@ -175,7 +196,7 @@ int main(int argc, char *argv[]) {
 
                     
                         
-                    }else if(strcmp(frame.header, "EXIT") == 0){
+                    }else if(strcmp(frame.header, "EXIT_BOWMAN") == 0){
                         printFrame(&frame);
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
                         printStringWithHeader("This Bowman Clossing Session: ", separatedData[0]);
