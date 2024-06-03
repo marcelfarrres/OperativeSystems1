@@ -104,6 +104,34 @@ void addBowman(PooleServer *server, const char *newBowman) {
     }
     server->numConnections++;
 }
+void removeConnection(const char *name) {
+    for (int s = 0; s < numberOfPooleServers; s++) {
+        PooleServer *server = listOfPooleServers[s];
+        for (int i = 0; i < server->numConnections; i++) {
+            if (strcmp(server->bowmans[i], name) == 0) {
+                // Free the memory for the name
+                free(server->bowmans[i]);
+
+                // Shift remaining connections down
+                for (int j = i; j < server->numConnections - 1; ++j) {
+                    server->bowmans[j] = server->bowmans[j + 1];
+                }
+
+                // Reallocate memory for bowmans array
+                server->numConnections--;
+                server->bowmans = realloc(server->bowmans, server->numConnections * sizeof(char*));
+
+                if (server->bowmans == NULL && server->numConnections > 0) {
+                    // Handle memory allocation failure
+                    perror("Failed to reallocate memory");
+                    exit(EXIT_FAILURE);
+                }
+
+                break;
+            }
+        }
+    }
+}
 
 
 
@@ -213,7 +241,9 @@ int main(int argc, char *argv[]) {
                     //WE HAVE A MESSAGE!---------------------------------------------------------------------
                     int result = readFrame(i, &frame);
                     if (result <= 0) {
+                        
                         socketDisconnectedDiscovery(i);
+                        printAllPooleServers(listOfPooleServers, numberOfPooleServers);
                     }else if(strcmp(frame.header, "NEW_POOLE") == 0){
                         printFrame(&frame);
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
@@ -229,7 +259,8 @@ int main(int argc, char *argv[]) {
                         sendOkConnectionDiscoveryPoole(i);
                         printString("Poole server added!\n");
 
-                        printPooleServer(listOfPooleServers[numberOfPooleServers - 1]);
+                        printAllPooleServers(listOfPooleServers, numberOfPooleServers);
+
                            
                     }else if(strcmp(frame.header, "NEW_BOWMAN") == 0){
                         printFrame(&frame);
@@ -244,15 +275,23 @@ int main(int argc, char *argv[]) {
                             PooleServer * pooleToConnect = findPooleServerWithLeastConnections();
                             addBowman(pooleToConnect, separatedData[0]);
                              
-                            printPooleServer(pooleToConnect);
+                            printAllPooleServers(listOfPooleServers, numberOfPooleServers);
+
 
                             char *miniBuffer;
                             asprintf(&miniBuffer, "%s&%s&%d", pooleToConnect->name, pooleToConnect->ip, pooleToConnect->port);
                             sendOkConnectionDiscoveryBowman(i, miniBuffer);
                             free(miniBuffer);
-
                         }
-                        //TODO: Select the Poole to send the data and store the name inside and send the frame to the bowman with the poole port and ip
+                    }else if(strcmp(frame.header, "EXIT") == 0){
+                        printFrame(&frame);
+                        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+                        printStringWithHeader("This Bowman Clossing Session: ", separatedData[0]);
+                        removeConnection(separatedData[0]);
+                        printAllPooleServers(listOfPooleServers, numberOfPooleServers);
+                        sendLogoutResponse(i);
+                        printString("\n-\n");
+                        
 
                     }
     

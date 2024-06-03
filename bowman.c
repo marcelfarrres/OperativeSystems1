@@ -31,9 +31,55 @@ void removeAmp(char *buffer,  int *Amp) {
 
 //SIGNALS PHASE-----------------------------------------------------------------
 void ctrl_C_function(){
+    printString("Closing Session..\n");
+    if(pooleSocketFd > 0){
+        sendLogout(pooleSocketFd, bowman.name);
+        int result = readFrame(pooleSocketFd, &frame);
+        if (result <= 0) {
+            printString("\nERROR: OK not receieved\n");
+            
+            
+        }else if(strcmp(frame.header, "CONKO") == 0){
+            printString("\nERROR:Poole KO CONNECTION.\n");
+            printFrame(&frame);
+            
+    
+        }else if(strcmp(frame.header, "CONOK") != 0){
+            printString("\nERROR: not what we were expecting\n");
+            printFrame(&frame);
+            
+        }else{
+            printFrame(&frame);
+            printString("\nConfirmation received from Poole! Clossing Session..\n");
+        }
+    }
+    if(discoverySocketFd > 0){
+        sendLogout(discoverySocketFd, bowman.name);
+        int result = readFrame(discoverySocketFd, &frame);
+        if (result <= 0) {
+            printString("\nERROR: OK not receieved\n");
+            
+            
+        }else if(strcmp(frame.header, "CONKO") == 0){
+            printString("\nERROR:Discovery KO CONNECTION.\n");
+            printFrame(&frame);
+            
+    
+        }else if(strcmp(frame.header, "CONOK") != 0){
+            printString("\nERROR: not what we were expecting\n");
+            printFrame(&frame);
+            
+        }else{
+            printFrame(&frame);
+            printString("\nConfirmation received from Discovery! Closing session..\n");
+        }
+
+    }
+    close(pooleSocketFd);
+    close(discoverySocketFd);
     printStringWithHeader("^\nFreeing memory..."," ");
-    printStringWithHeader("."," ");
-    //sleep(1);
+    
+    
     free(bowman.name);
     free(bowman.ipDiscovery);
     free(bowman.folder);
@@ -42,26 +88,8 @@ void ctrl_C_function(){
     free(frame.header);
     freeSeparatedData(&separatedData, &numberOfData);
 
-    close(pooleSocketFd);
-    close(discoverySocketFd);
-    printStringWithHeader(" ."," ");
-    //sleep(1);
-
-    //free(pooleToConnect.name);
-    //free(pooleToConnect.ip);
-
-    printStringWithHeader("  ."," ");
-    //sleep(1);
-    //close(discoverySockfd);
-    //close(pooleSockfd);
-
-    printStringWithHeader("   ."," ");
-    //sleep(1);
-    //freeFrame(frame);
-
-    printStringWithHeader("    ."," ");
-    //sleep(1);
-
+    
+    
 
     printStringWithHeader("     ...All memory freed...","\n\nReady to EXIT this BOWMAN Process.");
 
@@ -71,8 +99,57 @@ void ctrl_C_function(){
 
 //-----------------------------------------------------------------
 
+void manageLogOut(){
+    printString("Closing Session..\n");
+    if(pooleSocketFd > 0){
+        sendLogout(pooleSocketFd, bowman.name);
+        int result = readFrame(pooleSocketFd, &frame);
+        if (result <= 0) {
+            printString("\nERROR: OK not receieved\n");
+            
+            
+        }else if(strcmp(frame.header, "CONKO") == 0){
+            printString("\nERROR:Poole KO CONNECTION.\n");
+            printFrame(&frame);
+            
+    
+        }else if(strcmp(frame.header, "CONOK") != 0){
+            printString("\nERROR: not what we were expecting\n");
+            printFrame(&frame);
+            
+        }else{
+            printFrame(&frame);
+            printString("\nConfirmation received from Poole! Clossing Session..\n");
+        }
+    }
+    
+    close(pooleSocketFd);
+}
 
+void manageLogIn(){
+    char * auxIp = strdup(separatedData[1]);
+    pooleSocketFd = connectToServer(auxIp, atoi(separatedData[2]));
+    free(auxIp);
+    sendNewConnectionBowmanPoole(pooleSocketFd, bowman.name);
+    int result = readFrame(pooleSocketFd, &frame);
+    if (result <= 0) {
+        printString("\nERROR: OK not receieved\n");
+        ctrl_C_function();
+        
+    }else if(strcmp(frame.header, "CON_KO") == 0){
+        printString("\nERROR:Poole KO CONNECTION.\n");
+        printFrame(&frame);
+        ctrl_C_function();
 
+    }else if(strcmp(frame.header, "CON_OK") != 0){
+        printString("\nERROR: not what we were expecting\n");
+        printFrame(&frame);
+        ctrl_C_function();
+    }else{
+        printFrame(&frame);
+        printString("\nConfirmation received from Poole!\n");
+        }
+}
 
 
 void menu() {
@@ -90,10 +167,13 @@ void menu() {
         numberOfWords = 0;
         numberOfSpaces = 0;
         
-        printString("\n$ ");
+        if(connected == 0){
+            printString("\n[not connected] $ ");
+        }else{
+            printString("\n$ ");
 
+        }
         readFromConsole(&inputLength, &buffer);
-        
         
         for (int j = 0; j < inputLength; j++) {
             if (buffer[j] == ' ') {
@@ -106,37 +186,29 @@ void menu() {
                     }
             }
         }
-        //printInt("numberOfSpaces: ", numberOfSpaces);
-        //printInt("inputLength: ", inputLength);
-        //printInt("numberOfWords: ", numberOfWords);
-        //printString("eo\n");
+      
         char *input[numberOfSpaces + 1];
-        //slit into tokens by space
         char *token = strtok(buffer, " ");
         
         while (numberOfWords <= numberOfSpaces && token != NULL) {
-            //printStringWithHeader("token: ", token);
             input[numberOfWords] = token;
             token = strtok(NULL, " ");
             numberOfWords++;
         }
-        //printInt("numberOfSpaces: ", numberOfSpaces);
-        //printInt("inputLength: ", inputLength);
-        //printInt("numberOfWords: ", numberOfWords);
-
 
         if (numberOfWords == 1 && strcasecmp(input[0], "CONNECT") == 0) {
             if (connected) {
                 printString("Floyd is already connected.\n");
             } else {
                 connected = 1;
+                manageLogIn();
                 printString("Floyd connected to HAL 9000 system, welcome music lover!\n");
             }
         } else if (numberOfWords == 1 && strcasecmp(input[0], "LOGOUT") == 0) {
             if (connected) {
                 printString("Thanks for using HAL 9000, see you soon, music lover!\n");
-                active = 0;
                 connected = 0;
+                manageLogOut();
             } else {
                 printString("Cannot Logout, you are not connected to HAL 9000\n");
             }
@@ -239,34 +311,8 @@ int main(int argc, char *argv[]){
         printString("\nConfirmation received from Discovery!\n");
 
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-
-        char * auxIp = strdup(separatedData[1]);
-
-        
-        pooleSocketFd = connectToServer(auxIp, atoi(separatedData[2]));
-        free(auxIp);
-
-        sendNewConnectionBowmanPoole(pooleSocketFd, bowman.name);
-
-        int result = readFrame(pooleSocketFd, &frame);
-        if (result <= 0) {
-            printString("\nERROR: OK not receieved\n");
-            ctrl_C_function();
-            
-        }else if(strcmp(frame.header, "CON_KO") == 0){
-            printString("\nERROR:Poole KO CONNECTION.\n");
-            printFrame(&frame);
-            ctrl_C_function();
-    
-        }else if(strcmp(frame.header, "CON_OK") != 0){
-            printString("\nERROR: not what we were expecting\n");
-            printFrame(&frame);
-            ctrl_C_function();
-        }else{
-            printFrame(&frame);
-            printString("\nConfirmation received from Poole!\n");
-        }
     }
     menu();
+    
     return 0;
 }

@@ -39,8 +39,11 @@ void openFile( char *filename, int *fd);
 void printStringWithHeader(  char* text_,  char* string_);
 void printString( char* text_);
 void printInt( char* text_,  int int_);
+void printOnlyInt(int int_);
 void printFrame(Frame * frame);
 void printPooleServer(PooleServer *server);
+void printAllPooleServers(PooleServer **servers, int numServers);
+
 
 //READ FROM FILES-----------------------------------------------------------------------------
 void readStringFromFile(int fd, char delimiter, char ** destination);
@@ -92,7 +95,7 @@ void sendFileData(int socketFd,  char * fileData);
 void sendCheckResult(int socketFd,  char * result);
 
 void sendLogout(int socketFd,  char * userName);
-void sendLogoutResponse(int socketFd,  char * result);
+void sendLogoutResponse(int socketFd);
 
 void sendUnknownFrame(int socketFd);
 

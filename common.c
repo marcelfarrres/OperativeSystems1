@@ -85,28 +85,123 @@ void printInt( char* text_,  int int_) {
     free(buffer);
 }
 
+void printOnlyInt(int int_) {
+    char *buffer;
+    int size = asprintf(&buffer, "%d" ,int_);
+    if (size == -1) {
+        
+        perror("asprintf");
+        return;
+    }
+    write(1, buffer, strlen(buffer));
+    free(buffer);
+}
+
 void printFrame(Frame * frame){
-	printString("\n_______________________________\n");
-	printString("|___________FRAME_____________|\n");
-    printInt("| TYPE:", frame->type);
-    printInt("| HEADERLEnght:", frame->headerLength);
-    printStringWithHeader("| HEADER:", frame->header);
-    printStringWithHeader("|_DATA:", frame->data);
-    printString("\n");
+	printString("\n");
+    printString("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+    printString("┃          FRAME            ┃\n");
+    printString("┣━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
+    printInt("┃ TYPE:", frame->type);
+    printInt("┃ HEADERLEnght:", frame->headerLength);
+    printStringWithHeader("┃ HEADER:", frame->header);
+    printStringWithHeader("┃ DATA:", frame->data);
+    printString("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
+
+    
 }
 
 void printPooleServer(PooleServer *server) {
-    printString("\n_________________________________\n");
-    printString("|_________POOLE SERVER__________|\n");
-    printStringWithHeader("| NAME:            ", server->name);
-    printInt("| PORT:            ", server->port);
-    printStringWithHeader("| IP:              ", server->ip);
-    printInt("|_NUM_CONNECTIONS:_", server->numConnections);
-	for (int i = 0; i < server->numConnections; i++) {
-            printStringWithHeader("| 1):", (server->bowmans)[i]);
-        }
     printString("\n");
+    printString("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
+    printString("┃       POOLE SERVER        ┃\n");
+    printString("┣━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
 
+    printStringWithHeader("┃ NAME:", server->name);
+    printInt("┃ PORT:", server->port);
+    printStringWithHeader("┃ IP:", server->ip);
+    printInt("┃ NUM CONNECTIONS:", server->numConnections);
+	for (int i = 0; i < server->numConnections; i++) {
+            printString("┃  ");
+            printOnlyInt(i + 1);
+            printStringWithHeader("):", (server->bowmans)[i]);
+        }
+    printString("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");  
+
+}
+
+void printAllPooleServers(PooleServer **servers, int numServers) {
+    for (int e = 0; e < numServers; e++) {
+        if( e + 1 == numServers && e == 0 ){
+            printString("\n");
+            printString("╔═══════════════════════════════╗\n");
+            printString("║       ALL POOLE SERVERS       ║\n");
+            printString("╠═══════════════════════════════╣\n");
+            printString("║ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ║\n");
+            printStringWithHeader("║ ┃ NAME:", servers[e]->name);
+            printInt("║ ┃ PORT:", servers[e]->port);
+            printStringWithHeader("║ ┃ IP:", servers[e]->ip);
+            printInt("║ ┃ NUM CONNECTIONS:", servers[e]->numConnections);
+	        for (int i = 0; i < servers[e]->numConnections; i++) {
+                    printString("║ ┃  ");
+                    printOnlyInt(i + 1);
+                    printStringWithHeader("):", (servers[e]->bowmans)[i]);
+                }
+            printString("║ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ║\n");
+            printString("╚═══════════════════════════════╝\n\n");  
+            
+
+        }else if(e == 0){
+            printString("\n");
+            printString("╔═══════════════════════════════╗\n");
+            printString("║       ALL POOLE SERVERS       ║\n");
+            printString("╠═══════════════════════════════╣\n");
+            printString("║ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ║\n");
+            printStringWithHeader("║ ┃ NAME:", servers[e]->name);
+            printInt("║ ┃ PORT:", servers[e]->port);
+            printStringWithHeader("║ ┃ IP:", servers[e]->ip);
+            printInt("║ ┃ NUM CONNECTIONS:", servers[e]->numConnections);
+	        for (int i = 0; i < servers[e]->numConnections; i++) {
+                    printString("║ ┃  ");
+                    printOnlyInt(i + 1);
+                    printStringWithHeader("):", (servers[e]->bowmans)[i]);
+                }
+            printString("║ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ║ \n");  
+            
+
+        }else if( e + 1 == numServers){
+            printString("║                               ║\n");
+            printString("║ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ║\n");
+
+            printStringWithHeader("║ ┃ NAME:", servers[e]->name);
+            printInt("║ ┃ PORT:", servers[e]->port);
+            printStringWithHeader("║ ┃ IP:", servers[e]->ip);
+            printInt("║ ┃ NUM CONNECTIONS:", servers[e]->numConnections);
+	        for (int i = 0; i < servers[e]->numConnections; i++) {
+                    printString("║ ┃  ");
+                    printOnlyInt(i + 1);
+                    printStringWithHeader("):", (servers[e]->bowmans)[i]);
+                }
+            printString("║ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ║\n");  
+            printString("╚═══════════════════════════════╝\n\n");
+
+        }else{
+            printString("║                               ║\n");
+            printString("║ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ║\n");
+
+            printStringWithHeader("║ ┃ NAME:", servers[e]->name);
+            printInt("║ ┃ PORT:", servers[e]->port);
+            printStringWithHeader("║ ┃ IP:", servers[e]->ip);
+            printInt("║ ┃ NUM CONNECTIONS:", servers[e]->numConnections);
+	        for (int i = 0; i < servers[e]->numConnections; i++) {
+                    printString("║ ┃  ");
+                    printOnlyInt(i + 1);
+                    printStringWithHeader("):", (servers[e]->bowmans)[i]);
+                }
+            printString("║ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ║\n"); 
+        } 
+            
+    }
 }
 
 //READ FROM FILES-----------------------------------------------------------------------------
@@ -214,7 +309,7 @@ int createServer(int inputPort) {
     }
 
     
-	if(listen(listenfd, 5) < 0) {
+	if(listen(listenfd, 10) < 0) {
         printString("\nERROR: LISTEN");
     }
     return listenfd;
@@ -493,7 +588,7 @@ void sendCheckResult(int socketFd,  char * result) {
     free(frameToSend);
 }
 
-
+//LOG OUT
 void sendLogout(int socketFd,  char * userName) {
     char * frameToSend = createFrame(0x06, "EXIT", userName);
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
@@ -501,8 +596,8 @@ void sendLogout(int socketFd,  char * userName) {
 }
 
 
-void sendLogoutResponse(int socketFd,  char * result) {
-    char * frameToSend = createFrame(0x06, result, "EMPTY");
+void sendLogoutResponse(int socketFd) {
+    char * frameToSend = createFrame(0x06, "CONOK", "EMPTY");
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }

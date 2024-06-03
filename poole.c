@@ -18,6 +18,8 @@ socklen_t c_len = sizeof (c_addr);
 
 //SIGNALS PHASE-----------------------------------------------------------------
 void ctrl_C_function() {
+
+    
     printStringWithHeader("^\nFreeing memory...", " ");
     printStringWithHeader(".", " ");
     free(poole.name);
@@ -168,8 +170,16 @@ int main(int argc, char *argv[]) {
                     }else if(strcmp(frame.header, "NEW_BOWMAN") == 0){
                         printFrame(&frame);
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-                        printStringWithHeader("New Bowman connection:", separatedData[0]);
+                        printStringWithHeader("New Bowman connection:", separatedData[0]); //Here we have Marcel, Robert...
                         sendOkConnectionPooleBowman(i);
+
+                    
+                        
+                    }else if(strcmp(frame.header, "EXIT") == 0){
+                        printFrame(&frame);
+                        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+                        printStringWithHeader("This Bowman Clossing Session: ", separatedData[0]);
+                        sendLogoutResponse(i);
 
                     
                         

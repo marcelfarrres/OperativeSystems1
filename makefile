@@ -31,12 +31,12 @@ vb1:
 	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./bowman data/bowman1.dat
 
 vb2: 
-	gcc -g bovwman.c common.c -o bowman $(ALL_FLAGS)
+	gcc -g bowman.c common.c -o bowman $(ALL_FLAGS)
 	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./bowman data/bowman2.dat
 
 vb3: 
-	gcc -g bovwman.c common.c -o bowman $(ALL_FLAGS)
-	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./bowman data/bowman2.dat	
+	gcc -g bowman.c common.c -o bowman $(ALL_FLAGS)
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes ./bowman data/bowman3.dat	
 
 vp1: 
 	gcc -g poole.c common.c -o poole $(ALL_FLAGS)
