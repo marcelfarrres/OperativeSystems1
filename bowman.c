@@ -180,6 +180,8 @@ void manageLogIn(){
 void manageListSongs(){
     sendListSongs(pooleSocketFd);
     int result = readFrame(pooleSocketFd, &frame);
+    printFrame(&frame);
+
     if (result <= 0) {
         printString("\nERROR: OK not receieved\n");
         ctrl_C_function();
@@ -189,18 +191,20 @@ void manageListSongs(){
         ctrl_C_function();
         
     }else{
-        int counterOfSongs = 0;
-        printFrame(&frame);
+        int counterOfSongs = 1;
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
         printInt("atoi(separatedData[0]):", atoi(separatedData[0]));
-        for(int re = 0; re < atoi(separatedData[0]); re++){
-            counterOfSongs++;
+        int numberOfFrames = atoi(separatedData[0]);
+        for(int re = 0; re < numberOfFrames; re++){
             result = readFrame(pooleSocketFd, &frame);
+            printFrame(&frame);
             numberOfData = separateData(frame.data, &separatedData, &numberOfData);
             for(int mi = 0; mi < numberOfData; mi++){
-                printString("-");
+                printString(" ");
                 printOnlyInt(counterOfSongs);
-                printStringWithHeader(")", separatedData[mi]);
+                printStringWithHeader(".", separatedData[mi]);
+                counterOfSongs++;
+
             }
         }
 
@@ -273,7 +277,6 @@ void menu() {
         } else if (numberOfWords == 2 && strcasecmp(input[0], "LIST") == 0 && strcasecmp(input[1], "SONGS") == 0) {
             if (connected) {
                 manageListSongs();
-                printString("There are 6 songs available for download:\n1. Macarena.mp3\n2. Walk_of_life.mp3\n3. Levels.mp3\n4. Less_is_more.mp3\n5. Stand_up.mp3\n6. Isla_nostalgia.mp3\n");
             } else {
                 printString("Cannot List Songs, you are not connected to HAL 9000\n");
             }

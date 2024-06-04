@@ -115,7 +115,9 @@ void printFrame(Frame * frame){
     printString("┃          FRAME            ┃\n");
     printString("┣━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n");
     printInt("┃ TYPE:", frame->type);
-    printInt("┃ HEADERLEnght:", frame->headerLength);
+    printInt("┃ DATALength:", (int) strlen(frame->data));
+
+    printInt("┃ HEADERLenght:", frame->headerLength);
     printStringWithHeader("┃ HEADER:", frame->header);
     printStringWithHeader("┃ DATA:", frame->data);
     printString("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");

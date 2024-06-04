@@ -149,7 +149,7 @@ int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *n
 
     // Calculate the number of 256-byte frames needed
     // Header length should be taken into account if there is a fixed header size
-    int framesNeeded = (totalLength) / 110;
+    int framesNeeded = (totalLength) / 50;
     int finalNumberOfFrames = ((int) framesNeeded) + 1;
 
     // Allocate the outer list of lists
@@ -204,20 +204,20 @@ int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *n
     return 1;
 }
 
-void freeSongsList(char ***songs, int numFrames) {
-    if (songs == NULL) {
+void freeSongsList(char ****songs, int numFrames) {
+    if (*songs == NULL) {
         return;
     }
 
     for (int i = 0; i < numFrames; i++) {
-        if (songs[i] != NULL) {
-            for (int j = 0; songs[i][j] != NULL; j++) {
-                free(songs[i][j]);
+        if ((*songs)[i] != NULL) {
+            for (int j = 0; (*songs)[i][j] != NULL; j++) {
+                free((*songs)[i][j]);
             }
-            free(songs[i]);
+            free((*songs)[i]);
         }
     }
-    free(songs);
+    free(*songs);
 }
 
 //-----------------------------------------------------------------
@@ -339,25 +339,36 @@ int main(int argc, char *argv[]) {
                             int numberOfFrames = 0;
                             char*** songsToSend = NULL;
                             char *miniBuffer;
+                            char *miniBuffer2;
+
 
                             if (readSongsFromFolder(poole.folder, &songsToSend, &numberOfSongs, &numberOfFrames) == 1) {
+                                printInt("numberOfFrames:", numberOfFrames);
                                 //FIRST send the number of frames:
                                 asprintf(&miniBuffer, "%d", numberOfFrames);
                                 sendPlaylistsResponse(i, miniBuffer);
                                 free(miniBuffer);
 
-                                for (int i = 0; i < numberOfFrames; i++) {
-                                    for (int j = 0; songsToSend[i][j] != NULL; j++) {
-                                        asprintf(&miniBuffer, "%s&%s", miniBuffer, songsToSend[i][j]);
+                                for (int e = 0; e < numberOfFrames; e++) {
+                                        asprintf(&miniBuffer, "%s", songsToSend[e][0]);
+                                        
+                                    for (int j = 1; songsToSend[e][j] != NULL; j++) {   
+                                        //asprintf(&miniBuffer, "%s", songsToSend[i][j]);
+                                        
+                                        asprintf(&miniBuffer2, "%s&%s", miniBuffer, songsToSend[e][j]);
+                                        asprintf(&miniBuffer, "%s", miniBuffer2);
                                     }
                                     sendPlaylistsResponse(i, miniBuffer);
+                                    sleep(1);
                                     free(miniBuffer);
+                                    free(miniBuffer2);
+
                                 }
 
                                 // Free the list of songs
-                                freeSongsList(songsToSend, numberOfFrames);
+                                freeSongsList(&songsToSend, numberOfFrames);
                             } else {
-                                fprintf(stderr, "Failed to read songs from folder.\n");
+                                printString("Failed to read songs from folder.\n");
                             }
                             
 
@@ -375,6 +386,6 @@ int main(int argc, char *argv[]) {
 
 
 
-    sleep(100);
+   
     return 0;
 }
