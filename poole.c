@@ -92,6 +92,135 @@ void socketDisconnectedPoole(int socket_){
 }
 
 //-----------------------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
+#include <stdint.h>
+
+// Function to read song names from a directory and divide them into frames
+int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *numFrames) {
+    printStringWithHeader("folderPath:", folderPath);
+    DIR *dir = opendir(folderPath);
+    if (dir == NULL) {
+        perror("opendir");
+        return -1;
+    }
+
+    struct dirent *ent;
+    char **songList = NULL;
+    int songCount = 0;
+
+    // Read the directory entries
+    while ((ent = readdir(dir)) != NULL) {
+        // Skip the current and parent directory entries
+        if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
+            char **temp = realloc(songList, sizeof(char *) * (songCount + 1));
+            if (temp == NULL) {
+                perror("realloc");
+                for (int i = 0; i < songCount; i++) {
+                    free(songList[i]);
+                }
+                free(songList);
+                closedir(dir);
+                return -1;
+            }
+            songList = temp;
+            songList[songCount] = strdup(ent->d_name);
+            if (songList[songCount] == NULL) {
+                perror("strdup");
+                for (int i = 0; i < songCount; i++) {
+                    free(songList[i]);
+                }
+                free(songList);
+                closedir(dir);
+                return 0;
+            }
+            songCount++;
+        }
+    }
+    closedir(dir);
+
+    // Calculate the total length of all song names including separators (e.g., newlines or null terminators)
+    int totalLength = 0;
+    for (int i = 0; i < songCount; i++) {
+        totalLength += ((int) strlen(songList[i])) + 1; // Adding 1 for the separator
+    }
+
+    // Calculate the number of 256-byte frames needed
+    // Header length should be taken into account if there is a fixed header size
+    int framesNeeded = (totalLength) / 110;
+    int finalNumberOfFrames = ((int) framesNeeded) + 1;
+
+    // Allocate the outer list of lists
+    char ***songFrames = malloc(finalNumberOfFrames * sizeof(char **));
+    if (songFrames == NULL) {
+        perror("malloc");
+        for (int i = 0; i < songCount; i++) {
+            free(songList[i]);
+        }
+        free(songList);
+        return -1;
+    }
+
+    // Distribute the songs equally among the frames
+    int songsPerFrame = songCount / finalNumberOfFrames;
+    int remainder = songCount % finalNumberOfFrames;
+    int songIndex = 0;
+
+    for (int i = 0; i < finalNumberOfFrames; i++) {
+        int currentFrameSize = songsPerFrame + (remainder > 0 ? 1 : 0);
+        remainder--;
+
+        songFrames[i] = malloc(currentFrameSize * sizeof(char *));
+        if (songFrames[i] == NULL) {
+            perror("malloc");
+            for (int j = 0; j < i; j++) {
+                for (int k = 0; k < (songsPerFrame + (remainder > j ? 1 : 0)); k++) {
+                    free(songFrames[j][k]);
+                }
+                free(songFrames[j]);
+            }
+            for (int k = songIndex; k < songCount; k++) {
+                free(songList[k]);
+            }
+            free(songList);
+            free(songFrames);
+            return -1;
+        }
+
+        for (int j = 0; j < currentFrameSize; j++) {
+            songFrames[i][j] = songList[songIndex++];
+        }
+    }
+
+    free(songList);
+
+    // Set the output parameters
+    *songs = songFrames;
+    *numSongs = songCount;
+    *numFrames = finalNumberOfFrames;
+
+    return 1;
+}
+
+void freeSongsList(char ***songs, int numFrames) {
+    if (songs == NULL) {
+        return;
+    }
+
+    for (int i = 0; i < numFrames; i++) {
+        if (songs[i] != NULL) {
+            for (int j = 0; songs[i][j] != NULL; j++) {
+                free(songs[i][j]);
+            }
+            free(songs[i]);
+        }
+    }
+    free(songs);
+}
+
+//-----------------------------------------------------------------
 
 int main(int argc, char *argv[]) {
     //AUXILIAR VARIABLES
@@ -161,65 +290,86 @@ int main(int argc, char *argv[]) {
 
         while (1) {
         
-        fd_set auxiliarSetOf = setOfSockFd;  
+            fd_set auxiliarSetOf = setOfSockFd;  
 
-        select(50, &auxiliarSetOf, NULL, NULL, NULL);
+            select(50, &auxiliarSetOf, NULL, NULL, NULL);
 
-        for (int i = 0; i < 50; i++) {
-            if (FD_ISSET(i, &auxiliarSetOf)) {
-                if (i == thisPooleFd){
-                    
-                    int newBowman = accept(i, (void *)&c_addr, &c_len);
-                    if (newBowman < 0) {
-                        printString("\nERROR: newBowman not connected\n");
-                        ctrl_C_function();
-                        exit(EXIT_FAILURE);
-                    }
-                    printInt("\nNew Bowman connected with socket: ", newBowman);
-                    sockets = realloc(sockets, sizeof(int) * (numberOfSockets + 1));
-                    printInt("\nSizeof(Socket): ", sizeof(int) * (numberOfSockets + 1));
-                    printInt("\nNew size of ..sockets.. array: ", sizeof(sockets));
-                    sockets[numberOfSockets] = newBowman;
-                    numberOfSockets++;
-                    FD_SET(newBowman, &setOfSockFd);
+            for (int i = 0; i < 50; i++) {
+                if (FD_ISSET(i, &auxiliarSetOf)) {
+                    if (i == thisPooleFd){
 
-                } else {
-                    //WE HAVE A MESSAGE!---------------------------------------------------------------------
-                    int result = readFrame(i, &frame);
-                    if (result <= 0) {
-                        socketDisconnectedPoole(i);
-                    }else if(strcmp(frame.header, "NEW_BOWMAN") == 0){
-                        printFrame(&frame);
-                        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-                        printStringWithHeader("New Bowman connection:", separatedData[0]); //Here we have Marcel, Robert...
-                        sendOkConnectionPooleBowman(i);
+                        int newBowman = accept(i, (void *)&c_addr, &c_len);
+                        if (newBowman < 0) {
+                            printString("\nERROR: newBowman not connected\n");
+                            ctrl_C_function();
+                            exit(EXIT_FAILURE);
+                        }
+                        printInt("\nNew Bowman connected with socket: ", newBowman);
+                        sockets = realloc(sockets, sizeof(int) * (numberOfSockets + 1));
+                        printInt("\nSizeof(Socket): ", sizeof(int) * (numberOfSockets + 1));
+                        printInt("\nNew size of ..sockets.. array: ", sizeof(sockets));
+                        sockets[numberOfSockets] = newBowman;
+                        numberOfSockets++;
+                        FD_SET(newBowman, &setOfSockFd);
 
-                    
-                        
-                    }else if(strcmp(frame.header, "EXIT_BOWMAN") == 0){
-                        printFrame(&frame);
-                        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-                        printStringWithHeader("This Bowman Clossing Session: ", separatedData[0]);
-                        sendLogoutResponse(i);
+                    } else {
+                        //WE HAVE A MESSAGE!---------------------------------------------------------------------
+                        int result = readFrame(i, &frame);
+                        if (result <= 0) {
+                            socketDisconnectedPoole(i);
+                        }else if(strcmp(frame.header, "NEW_BOWMAN") == 0){
+                            printFrame(&frame);
+                            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+                            printStringWithHeader("New Bowman connection:", separatedData[0]); //Here we have Marcel, Robert...
+                            sendOkConnectionPooleBowman(i);
 
-                    
-                        
-                    }else if(strcmp(frame.header, "LIST_SONGS") == 0){
-                        printFrame(&frame);
-                        //We need to send folder/songs 
-                        
-                        sendLogoutResponse(i);
 
-                    
-                        
+
+                        }else if(strcmp(frame.header, "EXIT_BOWMAN") == 0){
+                            printFrame(&frame);
+                            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+                            printStringWithHeader("This Bowman Clossing Session: ", separatedData[0]);
+                            sendLogoutResponse(i);
+
+
+
+                        }else if(strcmp(frame.header, "LIST_SONGS") == 0){
+                            printFrame(&frame);
+                            int numberOfSongs = 0;
+                            int numberOfFrames = 0;
+                            char*** songsToSend = NULL;
+                            char *miniBuffer;
+
+                            if (readSongsFromFolder(poole.folder, &songsToSend, &numberOfSongs, &numberOfFrames) == 1) {
+                                //FIRST send the number of frames:
+                                asprintf(&miniBuffer, "%d", numberOfFrames);
+                                sendPlaylistsResponse(i, miniBuffer);
+                                free(miniBuffer);
+
+                                for (int i = 0; i < numberOfFrames; i++) {
+                                    for (int j = 0; songsToSend[i][j] != NULL; j++) {
+                                        asprintf(&miniBuffer, "%s&%s", miniBuffer, songsToSend[i][j]);
+                                    }
+                                    sendPlaylistsResponse(i, miniBuffer);
+                                    free(miniBuffer);
+                                }
+
+                                // Free the list of songs
+                                freeSongsList(songsToSend, numberOfFrames);
+                            } else {
+                                fprintf(stderr, "Failed to read songs from folder.\n");
+                            }
+                            
+
+
+
+
+
+                        }
                     }
                 }
             }
         }
-    }
-        
-
-
     }
 
 

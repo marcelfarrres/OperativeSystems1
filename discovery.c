@@ -266,11 +266,12 @@ int main(int argc, char *argv[]) {
                     FD_SET(newBowman, &setOfSockFd);
                 } else {
                     //WE HAVE A MESSAGE!---------------------------------------------------------------------
+                    printAllPooleServers(listOfPooleServers, numberOfPooleServers);
                     int result = readFrame(i, &frame);
                     if (result <= 0) {
                         
                         socketDisconnectedDiscovery(i);
-                        printAllPooleServers(listOfPooleServers, numberOfPooleServers);
+                        
                     }else if(strcmp(frame.header, "NEW_POOLE") == 0){
                         printFrame(&frame);
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
@@ -286,7 +287,6 @@ int main(int argc, char *argv[]) {
                         sendOkConnectionDiscoveryPoole(i);
                         printString("Poole server added!\n");
 
-                        printAllPooleServers(listOfPooleServers, numberOfPooleServers);
 
                            
                     }else if(strcmp(frame.header, "NEW_BOWMAN") == 0){
@@ -302,7 +302,6 @@ int main(int argc, char *argv[]) {
                             PooleServer * pooleToConnect = findPooleServerWithLeastConnections();
                             addBowman(pooleToConnect, separatedData[0]);
                              
-                            printAllPooleServers(listOfPooleServers, numberOfPooleServers);
 
 
                             char *miniBuffer;
@@ -315,7 +314,6 @@ int main(int argc, char *argv[]) {
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
                         printStringWithHeader("This Bowman Clossing Session: ", separatedData[0]);
                         removeBowmanConnection(separatedData[0]);
-                        printAllPooleServers(listOfPooleServers, numberOfPooleServers);
                         sendLogoutResponse(i);
                         printString("\n-\n");
                     }else if(strcmp(frame.header, "EXIT_POOLE") == 0){
@@ -323,7 +321,6 @@ int main(int argc, char *argv[]) {
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
                         printStringWithHeader("This Poole Clossing Session: ", separatedData[0]);
                         deletePooleServer(separatedData[0]);
-                        printAllPooleServers(listOfPooleServers, numberOfPooleServers);
                         sendLogoutResponse(i);
                         printString("\n-\n");
                     }

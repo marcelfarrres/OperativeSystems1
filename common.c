@@ -97,6 +97,18 @@ void printOnlyInt(int int_) {
     free(buffer);
 }
 
+void printChar(char ch) {
+    char *buffer;
+    int size = asprintf(&buffer, "%c" ,ch);
+    if (size == -1) {
+        
+        perror("asprintf");
+        return;
+    }
+    write(1, buffer, strlen(buffer));
+    free(buffer);
+}
+
 void printFrame(Frame * frame){
 	printString("\n");
     printString("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n");
@@ -236,7 +248,7 @@ void readStringFromFile(int fd, char delimiter, char **destination) {
     }
 
     strcpy(*destination, buffer);
-    (*destination)[strlen(buffer)] = '\0';
+    (*destination)[strlen(buffer) - 1] = '\0';
     free(buffer);
 }
 

@@ -179,7 +179,33 @@ void manageLogIn(){
 
 void manageListSongs(){
     sendListSongs(pooleSocketFd);
-    //int result = readFrame(pooleSocketFd, &frame);
+    int result = readFrame(pooleSocketFd, &frame);
+    if (result <= 0) {
+        printString("\nERROR: OK not receieved\n");
+        ctrl_C_function();
+    }else if(strcmp(frame.header, "SONGS_RESPONSE") != 0){
+        printString("\nERROR: not what we were expecting\n");
+        printFrame(&frame);
+        ctrl_C_function();
+        
+    }else{
+        int counterOfSongs = 0;
+        printFrame(&frame);
+        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+        printInt("atoi(separatedData[0]):", atoi(separatedData[0]));
+        for(int re = 0; re < atoi(separatedData[0]); re++){
+            counterOfSongs++;
+            result = readFrame(pooleSocketFd, &frame);
+            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+            for(int mi = 0; mi < numberOfData; mi++){
+                printString("-");
+                printOnlyInt(counterOfSongs);
+                printStringWithHeader(")", separatedData[mi]);
+            }
+        }
+
+        printString("\nALL SONGS PRINTED!");
+    }
 }
 
 

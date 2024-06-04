@@ -20,6 +20,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+
 #include "structures.h"
 
 
@@ -40,6 +41,7 @@ void printStringWithHeader(  char* text_,  char* string_);
 void printString( char* text_);
 void printInt( char* text_,  int int_);
 void printOnlyInt(int int_);
+void printChar(char ch);
 void printFrame(Frame * frame);
 void printPooleServer(PooleServer *server);
 void printAllPooleServers(PooleServer **servers, int numServers);
