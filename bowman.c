@@ -226,7 +226,6 @@ void manageListPlaylists(){
         ctrl_C_function();
         
     }else{
-        int counterOfSongs = 1;
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
         //printInt("atoi(separatedData[0]):", atoi(separatedData[0]));
         int numberOfFrames = atoi(separatedData[0]);
@@ -234,16 +233,16 @@ void manageListPlaylists(){
             result = readFrame(pooleSocketFd, &frame);
             //printFrame(&frame);
             numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-            for(int mi = 0; mi < numberOfData; mi++){
-                printString(" ");
-                printOnlyInt(counterOfSongs);
-                printStringWithHeader(".", separatedData[mi]);
-                counterOfSongs++;
+            printOnlyInt(re + 1);
+                
+            printStringWithHeader(".", separatedData[0]);
 
+            for(int mi = 1; mi < numberOfData; mi++){
+                printStringWithHeader("\t-", separatedData[mi]);
             }
         }
 
-        printString("\nALL SONGS PRINTED!");
+        printString("\nALL PLAYLISTS PRINTED!");
     }
 }
 

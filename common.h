@@ -73,7 +73,7 @@ char *joinStrings(char **splitStrings, int numStrings);
 
 
 int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *numFrames);
-int readPlaylistsFromFolder( char *folderPath, char ***strings, int *numFrames);
+int readPlaylistsFromFolder( char *folderPath, Playlist **finalPlaylists, int *finalNumPlaylists);
 void freeSongsList(char ****songs, int numFrames);
 
 

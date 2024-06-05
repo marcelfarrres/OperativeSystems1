@@ -660,9 +660,9 @@ int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *n
     return 1;
 }
 
-/*
+
 // Function to read song names from a directory and divide them into frames
-int readPlaylistsFromFolder( char *folderPath, char ***strings, int *numFrames) {
+int readPlaylistsFromFolder( char *folderPath, Playlist **finalPlaylists, int *finalNumPlaylists) {
     char *miniBuffer;
     asprintf(&miniBuffer, "%s/playlists", folderPath);
 
@@ -677,7 +677,7 @@ int readPlaylistsFromFolder( char *folderPath, char ***strings, int *numFrames) 
 
     struct dirent *ent;
     Playlist *playlists = NULL;
-    //char **songList = NULL;
+   
     int playlistCount = 0;
 
     // Read the directory entries
@@ -694,17 +694,18 @@ int readPlaylistsFromFolder( char *folderPath, char ***strings, int *numFrames) 
 
     for(int i = 0; i < playlistCount; i++){
         asprintf(&miniBuffer, "%s/playlists/%s", folderPath, playlists[i].name);
-        printStringWithHeader("-", playlists[i].name);
+        
         dir = opendir(miniBuffer);
         int songsCount = 0;
+        playlists[i].songs = NULL;
         while ((ent = readdir(dir)) != NULL) {
             if (ent->d_type == DT_REG && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
-                //playlists[i].songs = NULL;
+               
 
                 playlists[i].songs = realloc(playlists[i].songs, sizeof(char *) * (songsCount + 1));
                 asprintf(&playlists[i].songs[songsCount], "%s", ent->d_name); 
                 songsCount++;
-                printStringWithHeader("\t.", ent->d_name);
+                
 
             }
         }
@@ -712,13 +713,13 @@ int readPlaylistsFromFolder( char *folderPath, char ***strings, int *numFrames) 
         
         free(miniBuffer);
     }
-    
 
-    
+    *finalNumPlaylists = playlistCount;
+    *finalPlaylists = playlists;
     
     return 1;
 }
-*/
+
 
 void freeSongsList(char ****songs, int numFrames) {
     if (*songs == NULL) {

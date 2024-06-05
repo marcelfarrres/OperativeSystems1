@@ -243,23 +243,53 @@ int main(int argc, char *argv[]) {
 
                         }else if(strcmp(frame.header, "LIST_PLAYLISTS") == 0){
                             printFrame(&frame);
-                            /*
-                            int numberOfFrames = 0;
-                            char** stringsToSend = NULL;
                             char *miniBuffer;
-                         
+                            char *miniBuffer2;
+                            Playlist *finalPlaylists;
+                            int finalNumPlaylists;
 
 
-                            if (readPlaylistsFromFolder(poole.folder, &stringsToSend, &numberOfFrames) == 1) {
-                                printInt("numberOfFrames:", numberOfFrames);
+                            if (readPlaylistsFromFolder( poole.folder, &finalPlaylists, &finalNumPlaylists) == 1) {
+                                for(int mom = 0; mom < finalNumPlaylists; mom++){
+                                    printStringWithHeader("Playlist: ", finalPlaylists[mom].name);
+                                    for(int l = 0; l < finalPlaylists[mom].numSongs ; l++){
+                                        printStringWithHeader("\t -", finalPlaylists[mom].songs[l]);
+                                    }
+                                }
+                                
                                 //FIRST send the number of frames:
-                                asprintf(&miniBuffer, "%d", numberOfFrames);
-                                sendSongsResponse(i, miniBuffer);
+                                asprintf(&miniBuffer, "%d", finalNumPlaylists);
+                                sendPlaylistsResponse(i, miniBuffer);
                                 free(miniBuffer);
 
-                                for (int e = 0; e < numberOfFrames; e++) {
-                                    sendSongsResponse(i, stringsToSend[e]);
-                                    free(stringsToSend[e]);
+                                for (int e = 0; e < finalNumPlaylists; e++) {
+                                    if(finalPlaylists[e].numSongs == 0){
+                                        asprintf(&miniBuffer, "%s", finalPlaylists[e].name);
+                                        sendPlaylistsResponse(i, miniBuffer);
+
+                                        free(miniBuffer);
+                                        
+
+                                    }else{
+                                        asprintf(&miniBuffer, "%s&%s", finalPlaylists[e].name, finalPlaylists[e].songs[0]);
+                                        int freebuffer2 =0;
+                                        for (int j = 1; j < finalPlaylists[e].numSongs; j++) {   
+                                            freebuffer2 =1;
+                                            asprintf(&miniBuffer2, "%s&%s", miniBuffer, finalPlaylists[e].songs[j]);
+                                            asprintf(&miniBuffer, "%s", miniBuffer2);
+                                        }
+
+                                        sendPlaylistsResponse(i, miniBuffer);
+                                        
+                                        free(miniBuffer);
+                                        if(freebuffer2 == 1){
+                                            free(miniBuffer2);
+                                            
+                                        }
+                                    }
+
+                                    
+                                    
                                     
                                 }
 
@@ -267,7 +297,7 @@ int main(int argc, char *argv[]) {
                             } else {
                                 printString("Failed to read songs from folder.\n");
                             }
-                            */
+                            
                         }
                     }
                 }
