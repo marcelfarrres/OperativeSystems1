@@ -266,7 +266,6 @@ int main(int argc, char *argv[]) {
                     FD_SET(newBowman, &setOfSockFd);
                 } else {
                     //WE HAVE A MESSAGE!---------------------------------------------------------------------
-                    printAllPooleServers(listOfPooleServers, numberOfPooleServers);
                     int result = readFrame(i, &frame);
                     if (result <= 0) {
                         
@@ -324,6 +323,9 @@ int main(int argc, char *argv[]) {
                         sendLogoutResponse(i);
                         printString("\n-\n");
                     }
+
+                    printAllPooleServers(listOfPooleServers, numberOfPooleServers);
+
     
                 }
             }

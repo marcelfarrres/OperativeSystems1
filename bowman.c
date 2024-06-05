@@ -193,11 +193,11 @@ void manageListSongs(){
     }else{
         int counterOfSongs = 1;
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-        printInt("atoi(separatedData[0]):", atoi(separatedData[0]));
+        //printInt("atoi(separatedData[0]):", atoi(separatedData[0]));
         int numberOfFrames = atoi(separatedData[0]);
         for(int re = 0; re < numberOfFrames; re++){
             result = readFrame(pooleSocketFd, &frame);
-            printFrame(&frame);
+            //printFrame(&frame);
             numberOfData = separateData(frame.data, &separatedData, &numberOfData);
             for(int mi = 0; mi < numberOfData; mi++){
                 printString(" ");
@@ -212,7 +212,40 @@ void manageListSongs(){
     }
 }
 
+void manageListPlaylists(){
+    sendListPlaylists(pooleSocketFd);
+    int result = readFrame(pooleSocketFd, &frame);
+    printFrame(&frame);
 
+    if (result <= 0) {
+        printString("\nERROR: OK not receieved\n");
+        ctrl_C_function();
+    }else if(strcmp(frame.header, "SONGS_RESPONSE") != 0){
+        printString("\nERROR: not what we were expecting\n");
+        printFrame(&frame);
+        ctrl_C_function();
+        
+    }else{
+        int counterOfSongs = 1;
+        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+        //printInt("atoi(separatedData[0]):", atoi(separatedData[0]));
+        int numberOfFrames = atoi(separatedData[0]);
+        for(int re = 0; re < numberOfFrames; re++){
+            result = readFrame(pooleSocketFd, &frame);
+            //printFrame(&frame);
+            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+            for(int mi = 0; mi < numberOfData; mi++){
+                printString(" ");
+                printOnlyInt(counterOfSongs);
+                printStringWithHeader(".", separatedData[mi]);
+                counterOfSongs++;
+
+            }
+        }
+
+        printString("\nALL SONGS PRINTED!");
+    }
+}
 
 void menu() {
     char buffer[200];
@@ -282,7 +315,7 @@ void menu() {
             }
         } else if (numberOfWords == 2 && strcasecmp(input[0], "LIST") == 0 && strcasecmp(input[1], "PLAYLISTS") == 0) {
             if (connected) {
-                printString("There are 2 lists available for download:\n1. Pim_pam_trucu_trucu\na. Levels.mp3\nb. Stand_up.mp3\nc. Macarena.mp3\n2. Copeo_pre_costa\na. Macarena.mp3\nb. Isla_nostalgia.mp3\n");
+                manageListPlaylists();
             } else {
                 printString("Cannot List Playlist, you are not connected to HAL 9000\n");
             }

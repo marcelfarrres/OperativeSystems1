@@ -40,4 +40,9 @@ typedef struct{
     char *data;
 }Frame; 
 
+typedef struct{
+    char *name;
+    int numSongs;
+    char** songs;
+}Playlist; 
 #endif

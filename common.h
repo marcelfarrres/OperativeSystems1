@@ -67,6 +67,15 @@ void freeSeparatedData(char *** data, int * num);
 int separateData(char *data, char ***destination, int * num);
 
 
+//FILEs-----------------------------------------------------------------------------
+char **splitString(char *longString, int *numStrings);
+char *joinStrings(char **splitStrings, int numStrings);
+
+
+int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *numFrames);
+int readPlaylistsFromFolder( char *folderPath, char ***strings, int *numFrames);
+void freeSongsList(char ****songs, int numFrames);
+
 
 
 //DOCUMENTATION SENDING FRAMES:
@@ -85,7 +94,7 @@ void sendKoConnectionPooleBowman(int socketFd);
 void sendListSongs(int socketFd);
 void sendSongsResponse(int socketFd,  char * songs);
 
-void listPlaylists(int socketFd);
+void sendListPlaylists(int socketFd);
 void sendPlaylistsResponse(int socketFd,  char * playlists);
 
 void downloadSong(int socketFd,  char * songName);
