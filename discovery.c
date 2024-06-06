@@ -311,10 +311,9 @@ int main(int argc, char *argv[]) {
                     }else if(strcmp(frame.header, "EXIT_BOWMAN") == 0){
                         printFrame(&frame);
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-                        printStringWithHeader("This Bowman Clossing Session: ", separatedData[0]);
                         removeBowmanConnection(separatedData[0]);
                         sendLogoutResponse(i);
-                        printString("\n-\n");
+                        printStringWithHeader("\n-LOGOUT FROM:", separatedData[0]);
                     }else if(strcmp(frame.header, "EXIT_POOLE") == 0){
                         printFrame(&frame);
                         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
@@ -322,6 +321,13 @@ int main(int argc, char *argv[]) {
                         deletePooleServer(separatedData[0]);
                         sendLogoutResponse(i);
                         printString("\n-\n");
+                    }else if(strcmp(frame.header, "LOGOUT_BOWMAN") == 0){
+                        printFrame(&frame);
+                        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+                        
+                        removeBowmanConnection(separatedData[0]);
+                        sendLogoutResponse(i);
+                        printStringWithHeader("\n-LOGOUT FROM:", separatedData[0]);
                     }
 
                     printAllPooleServers(listOfPooleServers, numberOfPooleServers);

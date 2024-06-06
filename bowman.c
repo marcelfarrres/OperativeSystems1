@@ -121,6 +121,29 @@ void manageLogOut(){
             printFrame(&frame);
             printString("\nConfirmation received from Poole! Clossing Session..\n");
         }
+
+    }
+    if(discoverySocketFd > 0){
+        sendRemoveConnectionBowman(discoverySocketFd, bowman.name);
+        int result = readFrame(discoverySocketFd, &frame);
+        if (result <= 0) {
+            printString("\nERROR: OK not receieved\n");
+            
+            
+        }else if(strcmp(frame.header, "CONKO") == 0){
+            printString("\nERROR:Discovery KO CONNECTION.\n");
+            printFrame(&frame);
+            
+    
+        }else if(strcmp(frame.header, "CONOK") != 0){
+            printString("\nERROR: not what we were expecting\n");
+            printFrame(&frame);
+            
+        }else{
+            printFrame(&frame);
+            printString("\nConfirmation received from Discovery! Closing session..\n");
+        }
+
     }
     
     close(pooleSocketFd);

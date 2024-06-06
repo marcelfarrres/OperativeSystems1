@@ -72,9 +72,10 @@ char **splitString(char *longString, int *numStrings);
 char *joinStrings(char **splitStrings, int numStrings);
 
 
-int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *numFrames);
+int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *numFrames, int** numberOfSongsPerFrame);
 int readPlaylistsFromFolder( char *folderPath, Playlist **finalPlaylists, int *finalNumPlaylists);
-void freeSongsList(char ****songs, int numFrames);
+void freeSongsList(char ****songs, int numFrames, int * numSongsPerFrame);
+void freePlaylists(Playlist *finalPlaylists, int numPlaylists);
 
 
 
@@ -110,6 +111,10 @@ void sendLogoutPoole(int socketFd,  char * userName);
 void sendLogoutResponse(int socketFd);
 
 void sendUnknownFrame(int socketFd);
+
+//EXTRA for diconnection bowman from discovery:
+void sendRemoveConnectionBowman(int socketFd,  char * userName);
+
 
 
 

@@ -556,7 +556,7 @@ char *joinStrings(char **splitStrings, int numStrings) {
 }
 
 // Function to read song names from a directory and divide them into frames
-int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *numFrames) {
+int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *numFrames, int** numberOfSongsPerFrame) {
     printStringWithHeader("folderPath:", folderPath);
     DIR *dir = opendir(folderPath);
     if (dir == NULL) {
@@ -611,6 +611,8 @@ int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *n
 
     // Allocate the outer list of lists
     char ***songFrames = malloc(finalNumberOfFrames * sizeof(char **));
+    int *songCountPerFrame =  malloc(finalNumberOfFrames * sizeof(int));
+    
     if (songFrames == NULL) {
         perror("malloc");
         for (int i = 0; i < songCount; i++) {
@@ -649,6 +651,7 @@ int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *n
         for (int j = 0; j < currentFrameSize; j++) {
             songFrames[i][j] = songList[songIndex++];
         }
+        songCountPerFrame[i] = currentFrameSize;
     }
 
     free(songList);
@@ -656,87 +659,112 @@ int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *n
     *songs = songFrames;
     *numSongs = songCount;
     *numFrames = finalNumberOfFrames;
+    *numberOfSongsPerFrame = songCountPerFrame;
 
     return 1;
 }
 
 
-// Function to read song names from a directory and divide them into frames
-int readPlaylistsFromFolder( char *folderPath, Playlist **finalPlaylists, int *finalNumPlaylists) {
+
+int readPlaylistsFromFolder(char *folderPath, Playlist **finalPlaylists, int *finalNumPlaylists) {
     char *miniBuffer;
     asprintf(&miniBuffer, "%s/playlists", folderPath);
-
 
     printStringWithHeader("folderPath:", miniBuffer);
     DIR *dir = opendir(miniBuffer);
     if (dir == NULL) {
         perror("opendir");
+        free(miniBuffer);
         return -1;
     }
-        free(miniBuffer);
+    free(miniBuffer);
 
     struct dirent *ent;
     Playlist *playlists = NULL;
-   
     int playlistCount = 0;
 
     // Read the directory entries
     while ((ent = readdir(dir)) != NULL) {
-
         if (ent->d_type == DT_DIR && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
-
-            playlists = (Playlist*)realloc(playlists, sizeof(Playlist) * (playlistCount + 1));
-            asprintf(&playlists[playlistCount].name, "%s", ent->d_name); 
+            playlists = (Playlist *)realloc(playlists, sizeof(Playlist) * (playlistCount + 1));
+            asprintf(&playlists[playlistCount].name, "%s", ent->d_name);
+            playlists[playlistCount].songs = NULL; // Initialize the songs pointer to NULL
             playlistCount++;
         }
     }
-    closedir(dir);
+    closedir(dir); // Close the directory after reading its contents
 
-    for(int i = 0; i < playlistCount; i++){
+    for (int i = 0; i < playlistCount; i++) {
         asprintf(&miniBuffer, "%s/playlists/%s", folderPath, playlists[i].name);
-        
+
         dir = opendir(miniBuffer);
+        if (dir == NULL) {
+            perror("opendir");
+            free(miniBuffer);
+            // Free previously allocated playlists and their songs
+            for (int j = 0; j < i; j++) {
+                free(playlists[j].name);
+                for (int k = 0; k < playlists[j].numSongs; k++) {
+                    free(playlists[j].songs[k]);
+                }
+                free(playlists[j].songs);
+            }
+            free(playlists);
+            return -1;
+        }
+
         int songsCount = 0;
-        playlists[i].songs = NULL;
         while ((ent = readdir(dir)) != NULL) {
             if (ent->d_type == DT_REG && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
-               
-
                 playlists[i].songs = realloc(playlists[i].songs, sizeof(char *) * (songsCount + 1));
-                asprintf(&playlists[i].songs[songsCount], "%s", ent->d_name); 
+                asprintf(&playlists[i].songs[songsCount], "%s", ent->d_name);
                 songsCount++;
-                
-
             }
         }
         playlists[i].numSongs = songsCount;
-        
+
         free(miniBuffer);
+        closedir(dir); // Close the directory after reading its contents
     }
 
     *finalNumPlaylists = playlistCount;
     *finalPlaylists = playlists;
-    
+
     return 1;
 }
 
 
-void freeSongsList(char ****songs, int numFrames) {
+void freeSongsList(char ****songs, int numFrames, int * numSongsPerFrame) {
     if (*songs == NULL) {
         return;
     }
 
     for (int i = 0; i < numFrames; i++) {
         if ((*songs)[i] != NULL) {
-            for (int j = 0; (*songs)[i][j] != NULL; j++) {
+            for (int j = 0; j < numSongsPerFrame[i]; j++) {
                 free((*songs)[i][j]);
             }
             free((*songs)[i]);
         }
     }
     free(*songs);
+    free(numSongsPerFrame);
 }
 
+void freePlaylists(Playlist *finalPlaylists, int numPlaylists) {
+    for (int i = 0; i < numPlaylists; i++) {
+        for (int j = 0; j < finalPlaylists[i].numSongs; j++) {
+            free(finalPlaylists[i].songs[j]);
+        }
+        free(finalPlaylists[i].songs);
+        
+        free(finalPlaylists[i].name);
+        
+       
+    }
+    
+    free(finalPlaylists);
+}
 //DOCUMENTATION SENDING FRAMES------------------------------------------------------------
 
 //---Poole → Discovery NEW CONNECTION
@@ -886,6 +914,14 @@ void sendLogoutResponse(int socketFd) {
 
 void sendUnknownFrame(int socketFd) {
     char * frameToSend = createFrame(0x07, "UNKNOWN", "EMPTY");
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+
+//EXTRA for diconnection bowman from discovery:
+void sendRemoveConnectionBowman(int socketFd,  char * userName){
+    char * frameToSend = createFrame(0x06, "LOGOUT_BOWMAN", userName);
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
