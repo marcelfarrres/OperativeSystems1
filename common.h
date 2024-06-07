@@ -98,7 +98,7 @@ void sendSongsResponse(int socketFd,  char * songs);
 void sendListPlaylists(int socketFd);
 void sendPlaylistsResponse(int socketFd,  char * playlists);
 
-void downloadSong(int socketFd,  char * songName);
+void sendDownloadSong(int socketFd,  char * songName);
 void downloadPlaylist(int socketFd,  char * playlistName);
 
 void sendFileInfo(int socketFd,  char * fileInfo);

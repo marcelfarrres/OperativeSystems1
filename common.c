@@ -857,7 +857,7 @@ void sendPlaylistsResponse(int socketFd,  char * playlists) {
 }
 
 
-void downloadSong(int socketFd,  char * songName) {
+void sendDownloadSong(int socketFd,  char * songName) {
     char * frameToSend = createFrame(0x03, "DOWNLOAD_SONG", songName);
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);

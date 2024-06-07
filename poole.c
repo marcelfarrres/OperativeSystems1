@@ -271,20 +271,20 @@ int main(int argc, char *argv[]) {
                                     if (finalPlaylists[e].numSongs == 0) {
                                         asprintf(&miniBuffer, "%s", finalPlaylists[e].name);
                                         sendPlaylistsResponse(i, miniBuffer);
-                                
+
                                         free(miniBuffer);
                                     } else {
                                         asprintf(&miniBuffer, "%s&%s", finalPlaylists[e].name, finalPlaylists[e].songs[0]);
                                         for (int j = 1; j < finalPlaylists[e].numSongs; j++) {
                                             char *miniBuffer2 = NULL;
                                             asprintf(&miniBuffer2, "%s&%s", miniBuffer, finalPlaylists[e].songs[j]);
-                                
+
                                             free(miniBuffer);
                                             miniBuffer = miniBuffer2;
                                         }
-                                
+
                                         sendPlaylistsResponse(i, miniBuffer);
-                                        
+
                                         free(miniBuffer);
                                     }
                                 }
@@ -295,6 +295,39 @@ int main(int argc, char *argv[]) {
                                 printString("Failed to read playlists from folder.\n");
                             }
                             
+                        }else if(strcmp(frame.header, "DOWNLOAD_SONG") == 0){
+                            printFrame(&frame);
+                            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+                            printStringWithHeader("DownLoading Song: ", separatedData[0]);
+                            //check if the song exists:
+
+                            Playlist *finalPlaylists;
+                            int finalNumPlaylists;
+                            int found = 0;
+                            //TODO: Instead of reading playlists, read songs
+                            if (readPlaylistsFromFolder( poole.folder, &finalPlaylists, &finalNumPlaylists) == 1) {
+                                for(int mom = 0; mom < finalNumPlaylists; mom++){
+                                    printStringWithHeader("Playlist: ", finalPlaylists[mom].name);
+                                    for(int l = 0; l < finalPlaylists[mom].numSongs ; l++){
+                                        if(strcmp(finalPlaylists[mom].songs[l], separatedData[0]) == 0){
+                                            
+                                            found = 1;
+                                        }
+
+
+                                    }
+                                }
+                                if(found == 1){
+                                    printString("\nThe song exists!\n");
+                                }else{
+                                    printString("\nNo song that matches that name :(\n");
+
+                                }
+
+
+                            }
+
+
                         }
                     }
                 }

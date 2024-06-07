@@ -269,6 +269,14 @@ void manageListPlaylists(){
     }
 }
 
+void manageDownload(char * input){
+    printStringWithHeader("Download started!:::", input);
+    sendDownloadSong(pooleSocketFd,  input);
+
+
+
+}
+
 void menu() {
     char buffer[200];
     int connected = 0;
@@ -343,7 +351,7 @@ void menu() {
             }
         } else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) {
             if (connected) {
-                printString("Download started!\n");
+                manageDownload(input[1]);
             } else {
                 printString("Cannot download, you are not connected to HAL 9000\n");
             }
