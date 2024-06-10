@@ -7,6 +7,9 @@ int pooleSocketFd = -1;
 char** separatedData;
 int numberOfData = 0;
 
+FileDownload *download_head = NULL;
+pthread_mutex_t download_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 
 Frame frame;
 
@@ -95,6 +98,113 @@ void ctrl_C_function(){
 
 
     exit(EXIT_SUCCESS);
+}
+
+//-----------------------------------------------------------------
+
+void add_download(DownloadArgs *args) {
+    pthread_mutex_lock(&download_mutex);
+    
+    FileDownload *new_download = malloc(sizeof(FileDownload));
+    if (new_download == NULL) {
+        perror("Memory allocation failed for new download");
+        ctrl_C_function();
+    }
+
+    new_download->file_name = strdup(args->file_name); // Deep copy the file name
+    new_download->totalFileSize = args->totalFileSize;
+    new_download->currentFileSize = 0;
+    new_download->active = 1;
+    new_download->next = NULL;
+
+    if (download_head == NULL) {
+        download_head = new_download;
+    } else {
+        FileDownload *current = download_head;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = new_download;
+    }
+
+    pthread_mutex_unlock(&download_mutex);
+}
+
+
+void *downloadThread(void *args) {
+
+    DownloadArgs *downloadArgs = (DownloadArgs *)args;
+
+    FileDownload *current;
+
+    int pooleSockfd = downloadArgs->socket_fd;
+    int file_size = downloadArgs->totalFileSize;
+    char *file_path = downloadArgs->file_path;
+    char *MD5SUM_Poole = downloadArgs->MD5SUM_Poole;
+
+    int fd = open(file_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd == -1) {
+            perror("Error opening file");
+            ctrl_C_function();
+        }
+
+    int bytesReceived = 0;
+
+    while (bytesReceived < file_size) {
+
+        int dataLength = readFrame(pooleSockfd, &frame);
+
+        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+
+        write(fd, separatedData[1], dataLength - ((int)strlen(separateData[0])));
+
+        bytesReceived += dataLength;
+
+
+        pthread_mutex_lock(&download_mutex);
+        FileDownload *current = download_head;
+        while (current != NULL) {
+            if (strcmp(current->file_name, downloadArgs->file_name) == 0) {
+                current->currentFileSize = bytesReceived;
+                break;
+            }
+            current = current->next;
+        }
+        pthread_mutex_unlock(&download_mutex);
+        
+    }
+
+    // MD5 checksum
+    char* md5sum = calloc(33, sizeof(char));
+    //int md5sum_result = calculate_md5sum(file_path, md5sum);
+    int md5sum_result = 1;
+
+    if (md5sum_result == -1) {
+        printString("\n MD5 checksum Errorrr\n");
+        ctrl_C_function();
+    } else {
+        if (strcmp(md5sum, MD5SUM_Poole) == 0) {
+            sendCheckResult(pooleSockfd, 1);
+        } else {
+            sendCheckResult(pooleSockfd, 0);
+        }
+    }
+    
+
+    pthread_mutex_lock(&download_mutex);
+    current = download_head;
+    while (current != NULL) {
+        if (strcmp(current->file_name, downloadArgs->file_name) == 0) {
+            current->active = 0;
+            break;
+        }
+        current = current->next;
+    }
+    pthread_mutex_unlock(&download_mutex);
+
+    close(fd);
+    free(downloadArgs);
+    return NULL;
 }
 
 //-----------------------------------------------------------------
@@ -269,11 +379,52 @@ void manageListPlaylists(){
     }
 }
 
-void manageDownload(char * input){
-    printStringWithHeader("Download started!:::", input);
-    sendDownloadSong(pooleSocketFd,  input);
+void manageDownload(char ** input, int wordCount){
+
+    char * song = concatenateWords(input, wordCount);
+    sendDownloadSong(pooleSocketFd,  song);
+    int result = readFrame(pooleSocketFd, &frame);
+    printFrame(&frame);
+
+    if (result <= 0) {
+        printString("\nERROR: OK not receieved\n");
+        ctrl_C_function();
+    }else if(strcmp(frame.header, "NEW_FILE") != 0){
+        printString("\nERROR: not what we were expecting\n");
+        printFrame(&frame);
+        ctrl_C_function();
+        
+    }else{
+        printStringWithHeader("Download started:", song);
+        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
 
 
+        pthread_t thread;
+        DownloadArgs *args = malloc(sizeof(DownloadArgs));
+
+
+        args->socket_fd = pooleSocketFd;
+        args->totalFileSize = separateData[1];
+        args->file_path = bowman.folder;
+        args->MD5SUM_Poole = separateData[2];
+        args->file_name = separateData[0];
+
+        add_download(args);
+
+        if (pthread_create(&thread, NULL, downloadThread, args) != 0) {
+            perror("Failed to create download thread");
+            free(args);
+            ctrl_C_function();
+        }
+
+        pthread_detach(thread);
+
+    }
+
+
+
+    
+    free(song);
 
 }
 
@@ -351,7 +502,7 @@ void menu() {
             }
         } else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) {
             if (connected) {
-                manageDownload(input[1]);
+                manageDownload(input, numberOfWords);
             } else {
                 printString("Cannot download, you are not connected to HAL 9000\n");
             }

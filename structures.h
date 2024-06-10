@@ -45,4 +45,28 @@ typedef struct{
     int numSongs;
     char** songs;
 }Playlist; 
+
+typedef struct{
+    int id;
+    int fd;
+    char *filePath;
+} SendThread;
+
+typedef struct {
+    int socket_fd;
+    int totalFileSize; 
+    char *file_path;
+    char *MD5SUM_Poole;
+    char *file_name;
+} DownloadArgs;
+
+typedef struct FileDownload{
+    pthread_t thread_id;
+    char *file_name;
+    int totalFileSize;
+    int currentFileSize;
+    int active;
+    struct FileDownload *next;
+} FileDownload;
+
 #endif

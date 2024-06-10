@@ -30,6 +30,8 @@
 
 //VERY USED FUNCTIONS-----------------------------------------------------------------------------
 char *read_until(int fd, char end);
+char *concatenateWords(char **words, int wordCount);
+
 
 
 //INPUT PHASE-----------------------------------------------------------------------------
@@ -104,7 +106,7 @@ void downloadPlaylist(int socketFd,  char * playlistName);
 void sendFileInfo(int socketFd,  char * fileInfo);
 void sendFileData(int socketFd,  char * fileData);
 
-void sendCheckResult(int socketFd,  char * result);
+void sendCheckResult(int socketFd, int i);
 
 void sendLogoutBowman(int socketFd,  char * userName);
 void sendLogoutPoole(int socketFd,  char * userName);

@@ -90,6 +90,107 @@ void socketDisconnectedPoole(int socket_){
             }
         }
 }
+
+///FUNCION A COPIAR
+void* downloadThread(void* args){
+    SendThread *sendThread = (SendThread *) args;
+    //char *file_path = arguments->file_path;
+    //int id = arguments->id;
+
+    int fd = -1;
+    openFile(sendThread->filePath, &fd);
+
+
+    int bytesAlreadyRead;
+    int id_net = htonl(id);
+    char ampersand = '&';
+    //char dataBuffer[256 - (3 + strlen("FILE_DATA") + sizeof(id_net) + 1 ) ]; 
+    char dataBuffer[200]; 
+    int moreBytesToread = 1;
+
+    while (moreBytesToread == 1) {
+        if((bytesAlreadyRead = (int) read(fd, dataBuffer, sizeof(dataBuffer))) <= 0){
+            moreBytesToread = 0;
+        }
+        
+
+        
+        if (bytesAlreadyRead == -1){
+            printString("\nError reading file in thread\n");
+            moreBytesToread = 0;
+        }
+
+        sendFileData(sendThread->fd, dataBuffer);
+
+        
+    }
+
+    readFrame(sendThread->fd, &frame);
+
+    numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+    
+    if (strcmp(frame.header, "CHECK_OK") == 0){
+        write(1, "File sent successfully\n\n", 24);
+    } else {
+        write(1, "Error sending file\n\n", 20);
+    }
+
+    close(fd);
+    free(sendThread);
+    
+    return NULL;    
+}
+
+
+void sendSongToBowman(int socketToSendSong){
+
+    char * songPath = NULL;                         
+    asprintf(&songPath, "%s/%s", poole.folder, separatedData[0]);
+
+    int fd = -1;
+    openFile( songPath, &fd);
+
+    //ssize_t file_size = lseek(fd, 0, SEEK_END);
+    int songSize = (int) lseek(fd, 0, SEEK_END);
+
+    //printf("File Size in ssize_t: %ld\n", file_size);
+    printf("File Size in int: %d\n", songSize);
+
+    char* md5sum = calloc(33, sizeof(char));  
+
+    int idSending = rand() % 1000;
+    
+    /* falta
+
+    int md5 = calculate_md5sum(desired_path, md5sum);
+    if (md5 == -1){
+        perror("Error calculating md5sum");
+        
+    }
+    */
+    char *miniBuffer;
+    asprintf(&miniBuffer, "%s&%d&%s&%d", separatedData[0], songSize, md5sum, idSending);
+    sendFileInfo(socketToSendSong, miniBuffer);
+    free(miniBuffer);
+
+    pthread_t thread;
+
+    SendThread *args = malloc(sizeof(SendThread));
+
+    args->sockfd = socketToSendSong;
+    asprintf(&(args->file_path), "%s", songPath);
+    args->id = idSending;
+
+    if (pthread_create(&thread, NULL, downloadThread, args) != 0){
+        printString("\nError creating download thread\n");
+        ctrl_C_function();
+    }
+
+    pthread_detach(thread);
+
+    
+
+}
 //-----------------------------------------------------------------
 
 int main(int argc, char *argv[]) {
@@ -301,26 +402,31 @@ int main(int argc, char *argv[]) {
                             printStringWithHeader("DownLoading Song: ", separatedData[0]);
                             //check if the song exists:
 
-                            Playlist *finalPlaylists;
-                            int finalNumPlaylists;
+                            char ***songs;
+                            int numSongs;
+                            int numFrames;
+                            int* numberOfSongsPerFrame;
                             int found = 0;
-                            //TODO: Instead of reading playlists, read songs
-                            if (readPlaylistsFromFolder( poole.folder, &finalPlaylists, &finalNumPlaylists) == 1) {
-                                for(int mom = 0; mom < finalNumPlaylists; mom++){
-                                    printStringWithHeader("Playlist: ", finalPlaylists[mom].name);
-                                    for(int l = 0; l < finalPlaylists[mom].numSongs ; l++){
-                                        if(strcmp(finalPlaylists[mom].songs[l], separatedData[0]) == 0){
-                                            
+                            if (readSongsFromFolder( poole.folder, &songs, &numSongs, &numFrames, &numberOfSongsPerFrame) == 1) {
+                                for(int mom = 0; mom < numFrames; mom++){
+                                    //printStringWithHeader("Playlist: ", finalPlaylists[mom].name);
+                                    for(int l = 0; l < numberOfSongsPerFrame[mom] ; l++){
+                                        if(strcmp(songs[mom][l], separatedData[0]) == 0){ 
                                             found = 1;
                                         }
-
-
                                     }
                                 }
-                                if(found == 1){
-                                    printString("\nThe song exists!\n");
-                                }else{
+                                freeSongsList(&songs, numFrames, numberOfSongsPerFrame);
+                                if(found != 1){
                                     printString("\nNo song that matches that name :(\n");
+
+                                }else{
+                                    printString("\nThe song exists!\n");
+                                    
+                                    sendSongToBowman(i);
+
+                                    
+
 
                                 }
 

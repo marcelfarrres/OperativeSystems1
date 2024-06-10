@@ -5,7 +5,9 @@
 #define MAX_FRAME_SIZE_SENDING 100
 
 
-//VERY USED FUNCTIONS-----------------------------------------------------------------------------
+
+
+//COMMON FUNCTIONS-----------------------------------------------------------------------------
 char *read_until(int fd, char end)
 {
     char *string = NULL;
@@ -32,6 +34,29 @@ char *read_until(int fd, char end)
     string[i] = '\0';
     return string;
 }
+
+char *concatenateWords(char **words, int wordCount) {
+    int totalLength = 0;
+    for (int i = 1; i < wordCount; ++i) {
+        totalLength += strlen(words[i]);
+        if (i < wordCount - 1) totalLength++; 
+    }
+
+    char *result = (char *)malloc((totalLength + 1) * sizeof(char)); 
+    if (!result) {
+        printString("\nMemory allocation failed\n");
+        return NULL;
+    }
+
+    result[0] = '\0'; 
+    for (int i = 1; i < wordCount; ++i) {
+        strcat(result, words[i]);
+        if (i < wordCount - 1) strcat(result, " ");
+    }
+
+    return result;
+}
+
 
 
 
@@ -430,7 +455,7 @@ int readFrame(int socketFd, Frame * frame) {
     memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
     (frame->data)[dataLength - 1] = '\0'; 
 
-    return 1;
+    return dataLength;
 }
 
 void freeSeparatedData(char *** data, int *num){
@@ -885,10 +910,17 @@ void sendFileData(int socketFd,  char * fileData) {
 }
 
 
-void sendCheckResult(int socketFd,  char * result) {
-    char * frameToSend = createFrame(0x05, result, "EMPTY");
-    write(socketFd, frameToSend, MAX_FRAME_SIZE);
-    free(frameToSend);
+void sendCheckResult(int socketFd, int i) {
+    if(i != 0){
+        char * frameToSend = createFrame(0x05, "CHECK_OK", "EMPTY");
+        write(socketFd, frameToSend, MAX_FRAME_SIZE);
+        free(frameToSend);
+    }else{
+        char * frameToSend = createFrame(0x05, "CHECK_KO", "EMPTY");
+        write(socketFd, frameToSend, MAX_FRAME_SIZE);
+        free(frameToSend);
+    }
+    
 }
 
 //LOG OUT
