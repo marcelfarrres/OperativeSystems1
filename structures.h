@@ -50,6 +50,7 @@ typedef struct{
     int id;
     int fd;
     char *filePath;
+    int songSize;
 } SendThread;
 
 typedef struct {

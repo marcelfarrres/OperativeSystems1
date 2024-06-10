@@ -6,12 +6,13 @@ int discoverySocketFd = -1;
 int pooleSocketFd = -1;
 char** separatedData;
 int numberOfData = 0;
+Frame frame;
+
 
 FileDownload *download_head = NULL;
 pthread_mutex_t download_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
-Frame frame;
 
 
 
@@ -132,39 +133,61 @@ void add_download(DownloadArgs *args) {
 
 
 void *downloadThread(void *args) {
+    char** separatedDataT;
+    int numberOfDataT = 0;
+    Frame frameT;
+    initFrame(&frameT);
 
     DownloadArgs *downloadArgs = (DownloadArgs *)args;
-
-    FileDownload *current;
 
     int pooleSockfd = downloadArgs->socket_fd;
     int file_size = downloadArgs->totalFileSize;
     char *file_path = downloadArgs->file_path;
-    char *MD5SUM_Poole = downloadArgs->MD5SUM_Poole;
 
-    printStringWithHeader("file_path:", file_path);
+    printf("file_path: %s\n", file_path);
 
     int fd = open(file_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd == -1) {
         perror("Error opening file");
         ctrl_C_function();
     }
-    printString("\nWe opnened correctly the file\n");
+    printf("\nWe opened correctly the file\n");
 
     int bytesReceived = 0;
-
+    sleep(1);
+    int numberOfFramesRecieved = 0;
     while (bytesReceived < file_size) {
-
-        int dataLength = readFrame(pooleSockfd, &frame);
+        numberOfFramesRecieved++;
+        //printInt("numberOfFramesRecieved:", numberOfFramesRecieved);
+        //printInt("bytesReceived:", bytesReceived);
+        freeFrame(&frameT);
+        initFrame(&frameT);
+        int dataLength = readFrame(pooleSockfd, &frameT);
+        //printFrame(&frameT);
         
 
+        if (dataLength == -1) {
+            // Handle error in reading frame
+            break;
+        }
 
-        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
 
-        write(fd, separatedData[1], dataLength - ((int)strlen(separatedData[0])));
 
-        bytesReceived += dataLength;
+        //char *miniBuffer; //ERASE
 
+
+        numberOfDataT = separateData(frameT.data, &separatedDataT, &numberOfDataT);
+        if (numberOfDataT > 1 && separatedDataT[1] != NULL) {
+            //asprintf(&miniBuffer, "FRAME size: %d", (int)strlen(separatedDataT[1])); //ERASE
+            //write(fd, miniBuffer, (int)strlen(miniBuffer)); //ERASE
+            write(fd, separatedDataT[1], (int)strlen(separatedDataT[1]));
+            bytesReceived += (int)strlen(separatedDataT[1]);
+           
+
+
+        }
+
+        //printLoadingBar(file_size, bytesReceived);
 
         pthread_mutex_lock(&download_mutex);
         FileDownload *current = download_head;
@@ -176,29 +199,25 @@ void *downloadThread(void *args) {
             current = current->next;
         }
         pthread_mutex_unlock(&download_mutex);
-        
     }
+    //write(fd, "\nEND OF TRANSMISSION", (int)strlen("\nEND OF TRANSMISSION")); //ERASE
 
     // MD5 checksum
-    char* md5sum = malloc(33, sizeof(char));
-    md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";
-    //int md5sum_result = calculate_md5sum(file_path, md5sum);
-    int md5sum_result = 1;
+    char* md5sum = malloc(33 * sizeof(char));
+   
 
-    if (md5sum_result == -1) {
-        printString("\n MD5 checksum Errorrr\n");
-        ctrl_C_function();
+    md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";
+
+    //calculate_md5sum(file_path, md5sum); // Assuming this function is correctly implemented
+    if (strcmp(md5sum, downloadArgs->MD5SUM_Poole) != 0) {
+        sendCheckResult(pooleSockfd, 0);
     } else {
-        if (strcmp(md5sum, MD5SUM_Poole) == 0) {
-            sendCheckResult(pooleSockfd, 1);
-        } else {
-            sendCheckResult(pooleSockfd, 0);
-        }
+        sendCheckResult(pooleSockfd, 1);
     }
-    
+    //free(md5sum);
 
     pthread_mutex_lock(&download_mutex);
-    current = download_head;
+    FileDownload * current = download_head;
     while (current != NULL) {
         if (strcmp(current->file_name, downloadArgs->file_name) == 0) {
             current->active = 0;
@@ -207,9 +226,13 @@ void *downloadThread(void *args) {
         current = current->next;
     }
     pthread_mutex_unlock(&download_mutex);
+    printString("\nFile succesfully recieved!");
 
+    if (frameT.data) free(frameT.data);
+    if (frameT.header) free(frameT.header);
+    freeSeparatedData(&separatedDataT, &numberOfDataT);
     close(fd);
-    free(downloadArgs);
+
     return NULL;
 }
 
@@ -388,7 +411,7 @@ void manageListPlaylists(){
 void manageDownload(char ** input, int wordCount){
 
     char * song = concatenateWords(input, wordCount);
-    char * song2 = "Luka.mp3";
+    char * song2 = "Lu.mp3";
     
 
     sendDownloadSong(pooleSocketFd,  song2);
@@ -412,7 +435,10 @@ void manageDownload(char ** input, int wordCount){
         DownloadArgs *args = malloc(sizeof(DownloadArgs));
 
         char *miniBuffer;
-        asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
+
+        //asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
+        asprintf(&miniBuffer, "%s/%s", bowman.folder, song2);
+
         printStringWithHeader("\nFilenameeee:", miniBuffer);
 
         args->socket_fd = pooleSocketFd;

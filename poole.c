@@ -103,24 +103,37 @@ void* downloadThread(void* args){
 
     int bytesAlreadyRead;
     //char dataBuffer[256 - (3 + strlen("FILE_DATA") + sizeof(id_net) + 1 ) ]; 
-    char dataBuffer[200]; 
+   
     int moreBytesToread = 1;
-    printInt("\nsizeof(dataBuffer):",(int) sizeof(dataBuffer));
+   
+
+    char *miniBuffer;
+
 
     while (moreBytesToread == 1) {
+        char dataBuffer[200]; 
+        
+
         if((bytesAlreadyRead = (int) read(fd, dataBuffer, 200)) <= 0){
             moreBytesToread = 0;
         }else{
              if (bytesAlreadyRead == -1){
             printString("\nError reading file in thread\n");
             moreBytesToread = 0;
-            }
+            }else{
+                printStringWithHeader("\ndataBuffer:", dataBuffer);
+                printInt("bytesAlreadyRead:", bytesAlreadyRead);
+                asprintf(&miniBuffer, "%d&%s&", sendThread->id, dataBuffer);
 
-            //printInt(" strlen(dataBuffer):", (int)strlen(dataBuffer));
-            char *miniBuffer;
-            asprintf(&miniBuffer, "%d&%s&", sendThread->id, dataBuffer);
-            sendFileData(sendThread->fd, miniBuffer);
-            free(miniBuffer);
+                miniBuffer[bytesAlreadyRead + ((int)sizeof(sendThread->id)) ] = '\0';
+                sendFileData(sendThread->fd, miniBuffer);
+                printStringWithHeader("\nminiBuffer:", miniBuffer);
+                free(miniBuffer);
+               
+                
+             
+
+            }
 
             
         }
@@ -188,6 +201,7 @@ void sendSongToBowman(int socketToSendSong){
     args->fd = socketToSendSong;
     asprintf(&(args->filePath), "%s", songPath);
     args->id = idSending;
+    args->songSize = songSize;
 
     if (pthread_create(&thread, NULL, downloadThread, args) != 0){
         printString("\nError creating download thread\n");
