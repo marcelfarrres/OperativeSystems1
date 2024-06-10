@@ -142,21 +142,26 @@ void *downloadThread(void *args) {
     char *file_path = downloadArgs->file_path;
     char *MD5SUM_Poole = downloadArgs->MD5SUM_Poole;
 
+    printStringWithHeader("file_path:", file_path);
+
     int fd = open(file_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-        if (fd == -1) {
-            perror("Error opening file");
-            ctrl_C_function();
-        }
+    if (fd == -1) {
+        perror("Error opening file");
+        ctrl_C_function();
+    }
+    printString("\nWe opnened correctly the file\n");
 
     int bytesReceived = 0;
 
     while (bytesReceived < file_size) {
 
         int dataLength = readFrame(pooleSockfd, &frame);
+        
+
 
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
 
-        write(fd, separatedData[1], dataLength - ((int)strlen(separateData[0])));
+        write(fd, separatedData[1], dataLength - ((int)strlen(separatedData[0])));
 
         bytesReceived += dataLength;
 
@@ -175,7 +180,8 @@ void *downloadThread(void *args) {
     }
 
     // MD5 checksum
-    char* md5sum = calloc(33, sizeof(char));
+    char* md5sum = malloc(33, sizeof(char));
+    md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";
     //int md5sum_result = calculate_md5sum(file_path, md5sum);
     int md5sum_result = 1;
 
@@ -382,7 +388,10 @@ void manageListPlaylists(){
 void manageDownload(char ** input, int wordCount){
 
     char * song = concatenateWords(input, wordCount);
-    sendDownloadSong(pooleSocketFd,  song);
+    char * song2 = "Luka.mp3";
+    
+
+    sendDownloadSong(pooleSocketFd,  song2);
     int result = readFrame(pooleSocketFd, &frame);
     printFrame(&frame);
 
@@ -402,12 +411,15 @@ void manageDownload(char ** input, int wordCount){
         pthread_t thread;
         DownloadArgs *args = malloc(sizeof(DownloadArgs));
 
+        char *miniBuffer;
+        asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
+        printStringWithHeader("\nFilenameeee:", miniBuffer);
 
         args->socket_fd = pooleSocketFd;
-        args->totalFileSize = separateData[1];
-        args->file_path = bowman.folder;
-        args->MD5SUM_Poole = separateData[2];
-        args->file_name = separateData[0];
+        args->totalFileSize = atoi(separatedData[1]);
+        args->file_path = miniBuffer;
+        args->MD5SUM_Poole = separatedData[2];
+        args->file_name = separatedData[0];
 
         add_download(args);
 

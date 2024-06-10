@@ -39,6 +39,7 @@ void checkArgc(int argc);
 void openFile( char *filename, int *fd);
 
 //PRINT ON CONSOLE-----------------------------------------------------------------------------
+void printLoadingBar(int max, int actual);
 void printStringWithHeader(  char* text_,  char* string_);
 void printString( char* text_);
 void printInt( char* text_,  int int_);

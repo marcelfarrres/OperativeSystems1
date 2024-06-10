@@ -102,28 +102,34 @@ void* downloadThread(void* args){
 
 
     int bytesAlreadyRead;
-    int id_net = htonl(id);
-    char ampersand = '&';
     //char dataBuffer[256 - (3 + strlen("FILE_DATA") + sizeof(id_net) + 1 ) ]; 
     char dataBuffer[200]; 
     int moreBytesToread = 1;
+    printInt("\nsizeof(dataBuffer):",(int) sizeof(dataBuffer));
 
     while (moreBytesToread == 1) {
-        if((bytesAlreadyRead = (int) read(fd, dataBuffer, sizeof(dataBuffer))) <= 0){
+        if((bytesAlreadyRead = (int) read(fd, dataBuffer, 200)) <= 0){
             moreBytesToread = 0;
-        }
-        
-
-        
-        if (bytesAlreadyRead == -1){
+        }else{
+             if (bytesAlreadyRead == -1){
             printString("\nError reading file in thread\n");
             moreBytesToread = 0;
-        }
+            }
 
-        sendFileData(sendThread->fd, dataBuffer);
+            //printInt(" strlen(dataBuffer):", (int)strlen(dataBuffer));
+            char *miniBuffer;
+            asprintf(&miniBuffer, "%d&%s&", sendThread->id, dataBuffer);
+            sendFileData(sendThread->fd, miniBuffer);
+            free(miniBuffer);
+
+            
+        }
+        
 
         
     }
+
+    printString("\nSending Finished\n");
 
     readFrame(sendThread->fd, &frame);
 
@@ -157,6 +163,8 @@ void sendSongToBowman(int socketToSendSong){
     printf("File Size in int: %d\n", songSize);
 
     char* md5sum = calloc(33, sizeof(char));  
+    md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";
+
 
     int idSending = rand() % 1000;
     
@@ -177,8 +185,8 @@ void sendSongToBowman(int socketToSendSong){
 
     SendThread *args = malloc(sizeof(SendThread));
 
-    args->sockfd = socketToSendSong;
-    asprintf(&(args->file_path), "%s", songPath);
+    args->fd = socketToSendSong;
+    asprintf(&(args->filePath), "%s", songPath);
     args->id = idSending;
 
     if (pthread_create(&thread, NULL, downloadThread, args) != 0){
