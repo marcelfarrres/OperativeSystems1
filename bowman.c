@@ -1,6 +1,8 @@
 #include "common.h"
 #include "structures.h"
 
+
+
 Bowman bowman;
 int discoverySocketFd = -1;
 int pooleSocketFd = -1;
@@ -9,13 +11,9 @@ int numberOfData = 0;
 Frame frame;
 
 
+
 FileDownload *download_head = NULL;
 pthread_mutex_t download_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-
-
-
-
 
 void removeAmp(char *buffer,  int *Amp) {
     int length = strlen(buffer); 
@@ -41,7 +39,7 @@ int readFrameBinary(int socketFd, Frame *frame) {
     int numBytes = read(socketFd, buffer, 256);
 
     if (numBytes <= 0) {
-        return numBytes;  // Return on read error or no data
+        return numBytes;  
     }
 
     frame->type = buffer[0];
@@ -49,13 +47,13 @@ int readFrameBinary(int socketFd, Frame *frame) {
 
     frame->header = (char *)malloc((frame->headerLength + 1) * sizeof(char));
     memcpy(frame->header, buffer + 3, frame->headerLength);
-    frame->header[frame->headerLength] = '\0'; // Null-terminate header for safety
+    frame->header[frame->headerLength] = '\0'; 
 
     int dataLength = numBytes - 3 - frame->headerLength; 
-    frame->data = (char *)malloc(dataLength); // Allocate exactly data length
+    frame->data = (char *)malloc(dataLength); 
     memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
 
-    return 200; // Return the length of data part, not including the header or frame metadata
+    return BINARY_SENDING_SIZE; 
 }
 
 
@@ -170,14 +168,14 @@ void *downloadThread(void *args) {
     int file_size = downloadArgs->totalFileSize;
     char *file_path = downloadArgs->file_path;
 
-    printf("file_path: %s\n", file_path);
+    
 
     int fd = open(file_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd == -1) {
         perror("Error opening file");
         ctrl_C_function();
     }
-    printf("\nWe opened correctly the file\n");
+    
 
     int bytesReceived = 0;
   
@@ -194,7 +192,7 @@ void *downloadThread(void *args) {
             break;
         }
 
-        printInt("dataLength:", dataLength);
+        //printInt("dataLength:", dataLength);
         if (frameT.data != NULL) {
             write(fd, frameT.data, dataLength);
             bytesReceived += dataLength;
@@ -213,8 +211,6 @@ void *downloadThread(void *args) {
     }
 
 
-    
-
     // MD5 checksum
     char* md5sum = malloc(33 * sizeof(char));
    
@@ -230,7 +226,7 @@ void *downloadThread(void *args) {
     //free(md5sum);
     close(fd);
 
-    printString("\nFile succesfully recieved!");
+    //printString("\nFile succesfully recieved!");
 
 
     pthread_mutex_lock(&download_mutex);
@@ -243,7 +239,7 @@ void *downloadThread(void *args) {
         current = current->next;
     }
     pthread_mutex_unlock(&download_mutex);
-    printString("\nFile succesfully recieved!");
+    //printString("\nFile succesfully recieved!");
 
     if (frameT.data) free(frameT.data);
     if (frameT.header) free(frameT.header);
@@ -452,7 +448,6 @@ void manageDownload(char ** input, int wordCount){
 
         char *miniBuffer;
 
-        //asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
         asprintf(&miniBuffer, "%s/%s", bowman.folder, song);
 
         printStringWithHeader("\nFilenameeee:", miniBuffer);

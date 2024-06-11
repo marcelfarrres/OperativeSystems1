@@ -1,6 +1,8 @@
 #include "common.h"
 #include "structures.h"
 
+
+
 Poole poole;
 int pooleFd = -1; //POOLE FILE
 int discoverySocketFd = -1;
@@ -92,7 +94,7 @@ void socketDisconnectedPoole(int socket_){
 }
 
 char * createFrameBinary(uint8_t type, char *header, char *data, int dataLength) {
-    char *frame = (char *)malloc(256); // Assuming frame size is fixed at 256 bytes
+    char *frame = (char *)malloc(BINARY_FRAME_SIZE); 
     int lengthHeader = strlen(header);
 
     if (lengthHeader > 255) {
@@ -104,13 +106,13 @@ char * createFrameBinary(uint8_t type, char *header, char *data, int dataLength)
     frame[1] = lengthHeader & 0xFF;
     frame[2] = (lengthHeader >> 8) & 0xFF;
 
-    memcpy(frame + 3, header, lengthHeader); // Copy header
+    memcpy(frame + 3, header, lengthHeader);
 
-    memcpy(frame + 3 + lengthHeader, data, dataLength); // Copy binary data
+    memcpy(frame + 3 + lengthHeader, data, dataLength); 
 
     int totalLength = 3 + lengthHeader + dataLength;
-    int pad = 256 - totalLength;
-    memset(frame + totalLength, 0, pad); // Padding with zeros if necessary
+    int pad = BINARY_FRAME_SIZE - totalLength;
+    memset(frame + totalLength, 0, pad); 
 
     return frame;
 }
@@ -118,121 +120,89 @@ char * createFrameBinary(uint8_t type, char *header, char *data, int dataLength)
 void sendFileDataBinary(int socketFd, char *fileData, int fileDataLength) {
     char *frameToSend = createFrameBinary(0x04, "FILE_DATA", fileData, fileDataLength);
     if (frameToSend != NULL) {
-        write(socketFd, frameToSend, 256); // Assuming frame size is fixed at 256 bytes
+        write(socketFd, frameToSend, BINARY_FRAME_SIZE); 
         free(frameToSend);
     }
 }
 
 void* downloadThread(void* args){
     SendThread *sendThread = (SendThread *) args;
-    //char *file_path = arguments->file_path;
-    //int id = arguments->id;
+    Frame frame2; 
+    initFrame(&frame2);
 
     int fd = -1;
     openFile(sendThread->filePath, &fd);
-
-
-   
-    //char dataBuffer[256 - (3 + strlen("FILE_DATA") + sizeof(id_net) + 1 ) ]; 
-   
     int moreBytesToread = 1;
-   
-
-    //char *miniBuffer;
-
 
     while (moreBytesToread == 1) {
-        char dataBuffer[200]; // Buffer to hold binary data
-
-        int bytesAlreadyRead = read(fd, dataBuffer, sizeof(dataBuffer)); // Read binary data from file
+        char dataBuffer[BINARY_SENDING_SIZE];
+        int bytesAlreadyRead = read(fd, dataBuffer, sizeof(dataBuffer)); 
         if (bytesAlreadyRead <= 0) {
             if (bytesAlreadyRead == -1) {
                 printString("\nError reading file in thread\n");
             }
-            moreBytesToread = 0;  // No more data to read or an error occurred
+            moreBytesToread = 0; 
         } else {
-            // Send the binary data read from the file
             sendFileDataBinary(sendThread->fd, dataBuffer, bytesAlreadyRead);
-
-            // Optionally log the bytes read
-            printInt("bytesAlreadyRead:", bytesAlreadyRead);
-            printStringWithHeader("dataBuffer:",dataBuffer);
         }
     }
 
-
-
     printString("\nSending Finished\n");
 
-    readFrame(sendThread->fd, &frame);
+    readFrame(sendThread->fd, &frame2);
 
-    numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-    
-    if (strcmp(frame.header, "CHECK_OK") == 0){
-        write(1, "File sent successfully\n\n", 24);
+    if (strcmp(frame2.header, "CHECK_OK") == 0){
+        printString("\nCONFIRMATION RECEIVED!\n");
     } else {
-        write(1, "Error sending file\n\n", 20);
+        printString("\nFILE NOT RECEIVED CORRECTLY\n");
     }
+    
+    close(fd); // Close the file descriptor
 
-    close(fd);
-    free(sendThread);
+    free(sendThread->filePath); // Free the filePath allocated with strdup
+    free(sendThread); // Free the SendThread structure
+    freeFrame(&frame2); // Assuming this function properly frees anything allocated within Frame
     
     return NULL;    
 }
 
 
 void sendSongToBowman(int socketToSendSong){
-
-    char * songPath = NULL;                         
-    asprintf(&songPath, "%s/%s", poole.folder, separatedData[0]);
+    char * songPath = NULL;
+    asprintf(&songPath, "%s/%s", poole.folder, separatedData[0]);  // Memory allocated here
 
     int fd = -1;
-    openFile( songPath, &fd);
-
-    //ssize_t file_size = lseek(fd, 0, SEEK_END);
+    openFile(songPath, &fd);
     int songSize = (int) lseek(fd, 0, SEEK_END);
 
-    //printf("File Size in ssize_t: %ld\n", file_size);
-    printf("File Size in int: %d\n", songSize);
-
-    char* md5sum = calloc(33, sizeof(char));  
-    md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";
-
+    char* md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";  // Hardcoded value used directly
 
     int idSending = rand() % 1000;
-    
-    /* falta
-
-    int md5 = calculate_md5sum(desired_path, md5sum);
-    if (md5 == -1){
-        perror("Error calculating md5sum");
-        
-    }
-    */
     char *miniBuffer;
-    asprintf(&miniBuffer, "%s&%d&%s&%d", separatedData[0], songSize, md5sum, idSending);
+    asprintf(&miniBuffer, "%s&%d&%s&%d", separatedData[0], songSize, md5sum, idSending);  // Memory allocated here
     sendFileInfo(socketToSendSong, miniBuffer);
-    free(miniBuffer);
+    free(miniBuffer);  // Freeing memory after use
 
     pthread_t thread;
-
-    SendThread *args = malloc(sizeof(SendThread));
+    SendThread *args = malloc(sizeof(SendThread));  // Memory allocated here
 
     args->fd = socketToSendSong;
-    asprintf(&(args->filePath), "%s", songPath);
+    args->filePath = strdup(songPath);  // Copy string safely
     args->id = idSending;
     args->songSize = songSize;
 
     if (pthread_create(&thread, NULL, downloadThread, args) != 0){
         printString("\nError creating download thread\n");
+        free(args->filePath);  // Free filePath on error
+        free(args);  // Free args structure on error
         ctrl_C_function();
+    } else {
+        pthread_detach(thread);  // Detach thread if successful
     }
 
-    pthread_detach(thread);
-
-    
-
+    free(songPath);  // Freeing songPath after all its uses
 }
+
 //-----------------------------------------------------------------
 
 int main(int argc, char *argv[]) {

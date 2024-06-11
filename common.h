@@ -21,12 +21,12 @@
 #include <unistd.h>
 
 
+
+
 #include "structures.h"
 
-
-#define OPT_CONNECT "CONNECT"
-#define OPT_CHECK_DOWNLOADS1 "CHECK"
-#define OPT_CHECK_DOWNLOADS2 "DOWNLOADS"
+#define BINARY_SENDING_SIZE 200
+#define BINARY_FRAME_SIZE 256
 
 //VERY USED FUNCTIONS-----------------------------------------------------------------------------
 char *read_until(int fd, char end);
