@@ -156,6 +156,7 @@ void* downloadThread(void* args){
 
             // Optionally log the bytes read
             printInt("bytesAlreadyRead:", bytesAlreadyRead);
+            printStringWithHeader("dataBuffer:",dataBuffer);
         }
     }
 

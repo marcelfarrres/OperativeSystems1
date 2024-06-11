@@ -51,12 +51,9 @@ int readFrameBinary(int socketFd, Frame *frame) {
     memcpy(frame->header, buffer + 3, frame->headerLength);
     frame->header[frame->headerLength] = '\0'; // Null-terminate header for safety
 
-    int dataLength = numBytes - (3 + frame->headerLength); 
-   
+    int dataLength = numBytes - 3 - frame->headerLength; 
     frame->data = (char *)malloc(dataLength); // Allocate exactly data length
-    if (dataLength > 0) {
-        memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
-    }
+    memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
 
     return dataLength; // Return the length of data part, not including the header or frame metadata
 }
@@ -191,13 +188,14 @@ void *downloadThread(void *args) {
 
         freeFrame(&frameT);
         initFrame(&frameT);
-        int dataLength = readFrameBinary(pooleSockfd, &frameT);
-        if (dataLength == -1) {
-            printString("Error reading frame\n");
-            break; // Break the loop if there is an error
+        int dataLength = readFrame(pooleSockfd, &frameT);
+        if (dataLength <= 0) {
+            printString("Error reading frame or no data left\n");
+            break;
         }
-         printFrame(&frameT);
-        if (frameT.data != NULL && dataLength > 0) {
+
+        printInt("dataLength:", dataLength);
+        if (frameT.data != NULL) {
             write(fd, frameT.data, dataLength);
             bytesReceived += dataLength;
         }
@@ -213,6 +211,7 @@ void *downloadThread(void *args) {
         }
         pthread_mutex_unlock(&download_mutex);
     }
+
 
     
 
@@ -428,7 +427,7 @@ void manageListPlaylists(){
 void manageDownload(char ** input, int wordCount){
 
     char * song = concatenateWords(input, wordCount);
-    char * song2 = "Luka.mp3";
+    char * song2 = "example.txt";
     
 
     sendDownloadSong(pooleSocketFd,  song2);
