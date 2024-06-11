@@ -91,7 +91,38 @@ void socketDisconnectedPoole(int socket_){
         }
 }
 
-///FUNCION A COPIAR
+char * createFrameBinary(uint8_t type, char *header, char *data, int dataLength) {
+    char *frame = (char *)malloc(256); // Assuming frame size is fixed at 256 bytes
+    int lengthHeader = strlen(header);
+
+    if (lengthHeader > 255) {
+        printString("\nERROR: HEADER TOO LONG\n");
+        return NULL;
+    }
+
+    frame[0] = type;
+    frame[1] = lengthHeader & 0xFF;
+    frame[2] = (lengthHeader >> 8) & 0xFF;
+
+    memcpy(frame + 3, header, lengthHeader); // Copy header
+
+    memcpy(frame + 3 + lengthHeader, data, dataLength); // Copy binary data
+
+    int totalLength = 3 + lengthHeader + dataLength;
+    int pad = 256 - totalLength;
+    memset(frame + totalLength, 0, pad); // Padding with zeros if necessary
+
+    return frame;
+}
+
+void sendFileDataBinary(int socketFd, char *fileData, int fileDataLength) {
+    char *frameToSend = createFrameBinary(0x04, "FILE_DATA", fileData, fileDataLength);
+    if (frameToSend != NULL) {
+        write(socketFd, frameToSend, 256); // Assuming frame size is fixed at 256 bytes
+        free(frameToSend);
+    }
+}
+
 void* downloadThread(void* args){
     SendThread *sendThread = (SendThread *) args;
     //char *file_path = arguments->file_path;
@@ -101,46 +132,34 @@ void* downloadThread(void* args){
     openFile(sendThread->filePath, &fd);
 
 
-    int bytesAlreadyRead;
+   
     //char dataBuffer[256 - (3 + strlen("FILE_DATA") + sizeof(id_net) + 1 ) ]; 
    
     int moreBytesToread = 1;
    
 
-    char *miniBuffer;
+    //char *miniBuffer;
 
 
     while (moreBytesToread == 1) {
-        char dataBuffer[200]; 
-        
+        char dataBuffer[200]; // Buffer to hold binary data
 
-        if((bytesAlreadyRead = (int) read(fd, dataBuffer, 200)) <= 0){
-            moreBytesToread = 0;
-        }else{
-             if (bytesAlreadyRead == -1){
-            printString("\nError reading file in thread\n");
-            moreBytesToread = 0;
-            }else{
-                printStringWithHeader("\ndataBuffer:", dataBuffer);
-                printInt("bytesAlreadyRead:", bytesAlreadyRead);
-                asprintf(&miniBuffer, "%d&%s&", sendThread->id, dataBuffer);
-
-                miniBuffer[bytesAlreadyRead + ((int)sizeof(sendThread->id)) ] = '\0';
-                sendFileData(sendThread->fd, miniBuffer);
-                printStringWithHeader("\nminiBuffer:", miniBuffer);
-                free(miniBuffer);
-               
-                
-             
-
+        int bytesAlreadyRead = read(fd, dataBuffer, sizeof(dataBuffer)); // Read binary data from file
+        if (bytesAlreadyRead <= 0) {
+            if (bytesAlreadyRead == -1) {
+                printString("\nError reading file in thread\n");
             }
+            moreBytesToread = 0;  // No more data to read or an error occurred
+        } else {
+            // Send the binary data read from the file
+            sendFileDataBinary(sendThread->fd, dataBuffer, bytesAlreadyRead);
 
-            
+            // Optionally log the bytes read
+            printInt("bytesAlreadyRead:", bytesAlreadyRead);
         }
-        
-
-        
     }
+
+
 
     printString("\nSending Finished\n");
 

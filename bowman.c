@@ -33,6 +33,35 @@ void removeAmp(char *buffer,  int *Amp) {
     (*Amp)++;
 }
 
+int readFrameBinary(int socketFd, Frame *frame) {
+    freeFrame(frame);
+    initFrame(frame);
+
+    char buffer[256];
+    int numBytes = read(socketFd, buffer, 256);
+
+    if (numBytes <= 0) {
+        return numBytes;  // Return on read error or no data
+    }
+
+    frame->type = buffer[0];
+    frame->headerLength = (buffer[2] << 8) | buffer[1];
+
+    frame->header = (char *)malloc((frame->headerLength + 1) * sizeof(char));
+    memcpy(frame->header, buffer + 3, frame->headerLength);
+    frame->header[frame->headerLength] = '\0'; // Null-terminate header for safety
+
+    int dataLength = numBytes - (3 + frame->headerLength); 
+   
+    frame->data = (char *)malloc(dataLength); // Allocate exactly data length
+    if (dataLength > 0) {
+        memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
+    }
+
+    return dataLength; // Return the length of data part, not including the header or frame metadata
+}
+
+
 //SIGNALS PHASE-----------------------------------------------------------------
 void ctrl_C_function(){
     printString("Closing Session..\n");
@@ -154,40 +183,24 @@ void *downloadThread(void *args) {
     printf("\nWe opened correctly the file\n");
 
     int bytesReceived = 0;
-    sleep(1);
+  
     int numberOfFramesRecieved = 0;
+
     while (bytesReceived < file_size) {
         numberOfFramesRecieved++;
-        //printInt("numberOfFramesRecieved:", numberOfFramesRecieved);
-        //printInt("bytesReceived:", bytesReceived);
+
         freeFrame(&frameT);
         initFrame(&frameT);
-        int dataLength = readFrame(pooleSockfd, &frameT);
-        //printFrame(&frameT);
-        
-
+        int dataLength = readFrameBinary(pooleSockfd, &frameT);
         if (dataLength == -1) {
-            // Handle error in reading frame
-            break;
+            printString("Error reading frame\n");
+            break; // Break the loop if there is an error
         }
-
-
-
-        //char *miniBuffer; //ERASE
-
-
-        numberOfDataT = separateData(frameT.data, &separatedDataT, &numberOfDataT);
-        if (numberOfDataT > 1 && separatedDataT[1] != NULL) {
-            //asprintf(&miniBuffer, "FRAME size: %d", (int)strlen(separatedDataT[1])); //ERASE
-            //write(fd, miniBuffer, (int)strlen(miniBuffer)); //ERASE
-            write(fd, separatedDataT[1], (int)strlen(separatedDataT[1]));
-            bytesReceived += (int)strlen(separatedDataT[1]);
-           
-
-
+         printFrame(&frameT);
+        if (frameT.data != NULL && dataLength > 0) {
+            write(fd, frameT.data, dataLength);
+            bytesReceived += dataLength;
         }
-
-        //printLoadingBar(file_size, bytesReceived);
 
         pthread_mutex_lock(&download_mutex);
         FileDownload *current = download_head;
@@ -200,7 +213,8 @@ void *downloadThread(void *args) {
         }
         pthread_mutex_unlock(&download_mutex);
     }
-    //write(fd, "\nEND OF TRANSMISSION", (int)strlen("\nEND OF TRANSMISSION")); //ERASE
+
+    
 
     // MD5 checksum
     char* md5sum = malloc(33 * sizeof(char));
@@ -215,6 +229,10 @@ void *downloadThread(void *args) {
         sendCheckResult(pooleSockfd, 1);
     }
     //free(md5sum);
+    close(fd);
+
+    printString("\nFile succesfully recieved!");
+
 
     pthread_mutex_lock(&download_mutex);
     FileDownload * current = download_head;
@@ -231,7 +249,6 @@ void *downloadThread(void *args) {
     if (frameT.data) free(frameT.data);
     if (frameT.header) free(frameT.header);
     freeSeparatedData(&separatedDataT, &numberOfDataT);
-    close(fd);
 
     return NULL;
 }
@@ -411,7 +428,7 @@ void manageListPlaylists(){
 void manageDownload(char ** input, int wordCount){
 
     char * song = concatenateWords(input, wordCount);
-    char * song2 = "Lu.mp3";
+    char * song2 = "Luka.mp3";
     
 
     sendDownloadSong(pooleSocketFd,  song2);
