@@ -117,6 +117,7 @@ void sendUnknownFrame(int socketFd);
 
 //EXTRA for diconnection bowman from discovery:
 void sendRemoveConnectionBowman(int socketFd,  char * userName);
+void sendSoungNotFound(int socketFd);
 
 
 

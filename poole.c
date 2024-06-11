@@ -431,6 +431,8 @@ int main(int argc, char *argv[]) {
                                 freeSongsList(&songs, numFrames, numberOfSongsPerFrame);
                                 if(found != 1){
                                     printString("\nNo song that matches that name :(\n");
+                                    sendSoungNotFound(i);
+
 
                                 }else{
                                     printString("\nThe song exists!\n");

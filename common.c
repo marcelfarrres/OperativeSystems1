@@ -901,13 +901,12 @@ void sendPlaylistsResponse(int socketFd,  char * playlists) {
     free(frameToSend);
 }
 
-
+//SEND FILES
 void sendDownloadSong(int socketFd,  char * songName) {
     char * frameToSend = createFrame(0x03, "DOWNLOAD_SONG", songName);
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
-
 
 void downloadPlaylist(int socketFd,  char * playlistName) {
     char * frameToSend = createFrame(0x03, "DOWNLOAD_LIST", playlistName);
@@ -971,13 +970,21 @@ void sendUnknownFrame(int socketFd) {
 }
 
 
-//EXTRA for diconnection bowman from discovery:
+//EXTRA
+
+//for diconnection bowman from discovery:
 void sendRemoveConnectionBowman(int socketFd,  char * userName){
     char * frameToSend = createFrame(0x06, "LOGOUT_BOWMAN", userName);
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
 
+//for telling a bowman the song doesnt exist
+void sendSoungNotFound(int socketFd) {
+    char * frameToSend = createFrame(0x03, "NOT_FOUND", "EMPTY");
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
 
 
 

@@ -56,6 +56,42 @@ int readFrameBinary(int socketFd, Frame *frame) {
     return BINARY_SENDING_SIZE; 
 }
 
+void free_downloads() {
+    pthread_mutex_lock(&download_mutex);
+    
+    FileDownload *current = download_head;
+    while (current != NULL) {
+        FileDownload *next = current->next;
+        free(current->file_name);  // Free the strdup-ed file name
+        free(current);             // Free the node itself
+        current = next;            // Move to the next node
+    }
+
+    download_head = NULL;  // After freeing, set head to NULL
+
+    pthread_mutex_unlock(&download_mutex);
+}
+
+void freeDownloadArgs(DownloadArgs *args) {
+    if (args != NULL) {
+        // Free the dynamically allocated strings if they exist
+        if (args->file_path != NULL) {
+            free(args->file_path);
+            args->file_path = NULL;  // Set to NULL after freeing to avoid dangling pointers
+        }
+        if (args->MD5SUM_Poole != NULL) {
+            free(args->MD5SUM_Poole);
+            args->MD5SUM_Poole = NULL;
+        }
+        if (args->file_name != NULL) {
+            free(args->file_name);
+            args->file_name = NULL;
+        }
+
+        free(args);
+    }
+}
+
 
 //SIGNALS PHASE-----------------------------------------------------------------
 void ctrl_C_function(){
@@ -116,6 +152,7 @@ void ctrl_C_function(){
     free(frame.header);
     freeSeparatedData(&separatedData, &numberOfData);
 
+    free_downloads();
     
     
 
@@ -126,6 +163,9 @@ void ctrl_C_function(){
 }
 
 //-----------------------------------------------------------------
+
+
+
 
 void add_download(DownloadArgs *args) {
     pthread_mutex_lock(&download_mutex);
@@ -156,21 +196,13 @@ void add_download(DownloadArgs *args) {
 }
 
 
+
 void *downloadThread(void *args) {
-    char** separatedDataT;
-    int numberOfDataT = 0;
+    
     Frame frameT;
     initFrame(&frameT);
-
-    DownloadArgs *downloadArgs = (DownloadArgs *)args;
-
-    int pooleSockfd = downloadArgs->socket_fd;
-    int file_size = downloadArgs->totalFileSize;
-    char *file_path = downloadArgs->file_path;
-
     
-
-    int fd = open(file_path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    int fd = open(((DownloadArgs *)args)->file_path, O_WRONLY | O_TRUNC | O_CREAT, 0666);
     if (fd == -1) {
         perror("Error opening file");
         ctrl_C_function();
@@ -181,12 +213,12 @@ void *downloadThread(void *args) {
   
     int numberOfFramesRecieved = 0;
 
-    while (bytesReceived < file_size) {
+    while (bytesReceived < ((DownloadArgs *)args)->totalFileSize) {
         numberOfFramesRecieved++;
 
         freeFrame(&frameT);
         initFrame(&frameT);
-        int dataLength = readFrameBinary(pooleSockfd, &frameT);
+        int dataLength = readFrameBinary(((DownloadArgs *)args)->socket_fd, &frameT);
         if (dataLength <= 0) {
             printString("Error reading frame or no data left\n");
             break;
@@ -201,7 +233,7 @@ void *downloadThread(void *args) {
         pthread_mutex_lock(&download_mutex);
         FileDownload *current = download_head;
         while (current != NULL) {
-            if (strcmp(current->file_name, downloadArgs->file_name) == 0) {
+            if (strcmp(current->file_name,  ((DownloadArgs *)args)->file_name) == 0) {
                 current->currentFileSize = bytesReceived;
                 break;
             }
@@ -212,16 +244,16 @@ void *downloadThread(void *args) {
 
 
     // MD5 checksum
-    char* md5sum = malloc(33 * sizeof(char));
+    //char* md5sum = malloc(33 * sizeof(char));
    
 
-    md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";
+    char *md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";
 
     //calculate_md5sum(file_path, md5sum); // Assuming this function is correctly implemented
-    if (strcmp(md5sum, downloadArgs->MD5SUM_Poole) != 0) {
-        sendCheckResult(pooleSockfd, 0);
+    if (strcmp(md5sum,  ((DownloadArgs *)args)->MD5SUM_Poole) != 0) {
+        sendCheckResult(((DownloadArgs *)args)->socket_fd, 0);
     } else {
-        sendCheckResult(pooleSockfd, 1);
+        sendCheckResult(((DownloadArgs *)args)->socket_fd, 1);
     }
     //free(md5sum);
     close(fd);
@@ -232,7 +264,7 @@ void *downloadThread(void *args) {
     pthread_mutex_lock(&download_mutex);
     FileDownload * current = download_head;
     while (current != NULL) {
-        if (strcmp(current->file_name, downloadArgs->file_name) == 0) {
+        if (strcmp(current->file_name,  ((DownloadArgs *)args)->file_name) == 0) {
             current->active = 0;
             break;
         }
@@ -243,8 +275,8 @@ void *downloadThread(void *args) {
 
     if (frameT.data) free(frameT.data);
     if (frameT.header) free(frameT.header);
-    freeSeparatedData(&separatedDataT, &numberOfDataT);
-
+   
+    freeDownloadArgs((DownloadArgs *)args);
     return NULL;
 }
 
@@ -433,6 +465,11 @@ void manageDownload(char ** input, int wordCount){
     if (result <= 0) {
         printString("\nERROR: OK not receieved\n");
         ctrl_C_function();
+    }else if(strcmp(frame.header, "NOT_FOUND") == 0){
+        printString("\nERROR: File doesn't exists in the server\n");
+        printFrame(&frame);
+        
+        
     }else if(strcmp(frame.header, "NEW_FILE") != 0){
         printString("\nERROR: not what we were expecting\n");
         printFrame(&frame);
@@ -454,9 +491,9 @@ void manageDownload(char ** input, int wordCount){
 
         args->socket_fd = pooleSocketFd;
         args->totalFileSize = atoi(separatedData[1]);
-        args->file_path = miniBuffer;
-        args->MD5SUM_Poole = separatedData[2];
-        args->file_name = separatedData[0];
+        args->file_path = strdup(miniBuffer);
+        args->MD5SUM_Poole = strdup(separatedData[2]);
+        args->file_name = strdup(separatedData[0]);
 
         add_download(args);
 
@@ -465,6 +502,7 @@ void manageDownload(char ** input, int wordCount){
             free(args);
             ctrl_C_function();
         }
+        free(miniBuffer);
 
         pthread_detach(thread);
 
