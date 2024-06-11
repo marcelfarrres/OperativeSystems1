@@ -55,7 +55,7 @@ int readFrameBinary(int socketFd, Frame *frame) {
     frame->data = (char *)malloc(dataLength); // Allocate exactly data length
     memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
 
-    return dataLength; // Return the length of data part, not including the header or frame metadata
+    return 200; // Return the length of data part, not including the header or frame metadata
 }
 
 
@@ -188,7 +188,7 @@ void *downloadThread(void *args) {
 
         freeFrame(&frameT);
         initFrame(&frameT);
-        int dataLength = readFrame(pooleSockfd, &frameT);
+        int dataLength = readFrameBinary(pooleSockfd, &frameT);
         if (dataLength <= 0) {
             printString("Error reading frame or no data left\n");
             break;
@@ -427,10 +427,10 @@ void manageListPlaylists(){
 void manageDownload(char ** input, int wordCount){
 
     char * song = concatenateWords(input, wordCount);
-    char * song2 = "example.txt";
+    //char * song2 = "example.txt";
     
 
-    sendDownloadSong(pooleSocketFd,  song2);
+    sendDownloadSong(pooleSocketFd,  song);
     int result = readFrame(pooleSocketFd, &frame);
     printFrame(&frame);
 
@@ -453,7 +453,7 @@ void manageDownload(char ** input, int wordCount){
         char *miniBuffer;
 
         //asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
-        asprintf(&miniBuffer, "%s/%s", bowman.folder, song2);
+        asprintf(&miniBuffer, "%s/%s", bowman.folder, song);
 
         printStringWithHeader("\nFilenameeee:", miniBuffer);
 
