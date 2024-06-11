@@ -1,6 +1,12 @@
 #include "common.h"
 #include "structures.h"
 
+typedef struct{
+    int id;
+    int fd;
+    char *filePath;
+    int songSize;
+} SendThread;
 
 
 Poole poole;

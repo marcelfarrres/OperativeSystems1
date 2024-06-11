@@ -3,17 +3,46 @@
 
 
 
+
+
+typedef struct DownloadElement {
+    pthread_t thread_id;
+    char *name;
+    int maxSize;
+    int currentFileSize;
+    int active;
+} DownloadElement;
+
+typedef struct {
+    DownloadElement *elements;
+    int size;
+    int capacity;
+} DownloadList;
+
+typedef struct {
+    char *name;
+    int fdAttached;
+    int maxSize; 
+    char *pathOfTheFile;
+    char *md5;
+    DownloadList * list;
+} FileArgs;
+
 Bowman bowman;
 int discoverySocketFd = -1;
 int pooleSocketFd = -1;
 char** separatedData;
 int numberOfData = 0;
 Frame frame;
+DownloadList downloadList;
 
 
 
-FileDownload *download_head = NULL;
+
+
 pthread_mutex_t download_mutex = PTHREAD_MUTEX_INITIALIZER;
+DownloadElement *currentDownloads = NULL;
+
 
 void removeAmp(char *buffer,  int *Amp) {
     int length = strlen(buffer); 
@@ -56,41 +85,104 @@ int readFrameBinary(int socketFd, Frame *frame) {
     return BINARY_SENDING_SIZE; 
 }
 
-void free_downloads() {
+//DOWNLOADS-----------------------------------------------------------------------------------
+
+void initDownloadList(DownloadList *list) {
+    list->elements = NULL;
+    list->size = 0;
+    list->capacity = 0;
+}
+
+void freeDownloadList(DownloadList *list) {
     pthread_mutex_lock(&download_mutex);
-    
-    FileDownload *current = download_head;
-    while (current != NULL) {
-        FileDownload *next = current->next;
-        free(current->file_name);  // Free the strdup-ed file name
-        free(current);             // Free the node itself
-        current = next;            // Move to the next node
+    for (int i = 0; i < list->size; i++) {
+        free(list->elements[i].name);
     }
-
-    download_head = NULL;  // After freeing, set head to NULL
-
+    free(list->elements);
+    list->elements = NULL;
+    list->size = 0;
+    list->capacity = 0;
     pthread_mutex_unlock(&download_mutex);
 }
 
-void freeDownloadArgs(DownloadArgs *args) {
+
+
+void updateDownloadSize(DownloadList *list, const char *name, int size) {
+    //printString("\nWE GOT IN! updateDownloadSize\n");
+    
+    pthread_mutex_lock(&download_mutex);
+    for (int i = 0; i < list->size; i++) {
+        if (strcmp((list->elements)[i].name, name) == 0) {
+            (list->elements)[i].currentFileSize = size;
+            
+        }
+    }
+    pthread_mutex_unlock(&download_mutex);
+    //printString("\nWE GOT OUT! updateDownloadSize\n");
+}
+
+void deactivateDownload(DownloadList *list, const char *name) {
+    //printString("\nWE GOT IN! updateDownloadSize\n");
+    pthread_mutex_lock(&download_mutex);
+    for (int i = 0; i < list->size; i++) {
+        if (strcmp((list->elements)[i].name, name) == 0) {
+            (list->elements)[i].active = 0;
+            
+        }
+    }
+    pthread_mutex_unlock(&download_mutex);
+    //printString("\nWE GOT OUT! updateDownloadSize\n");
+
+}
+
+
+void freeDownloadArgs(FileArgs *args) {
     if (args != NULL) {
-        // Free the dynamically allocated strings if they exist
-        if (args->file_path != NULL) {
-            free(args->file_path);
-            args->file_path = NULL;  // Set to NULL after freeing to avoid dangling pointers
+        if (args->pathOfTheFile != NULL) {
+            free(args->pathOfTheFile);
+            args->pathOfTheFile = NULL;  
         }
-        if (args->MD5SUM_Poole != NULL) {
-            free(args->MD5SUM_Poole);
-            args->MD5SUM_Poole = NULL;
+        if (args->md5 != NULL) {
+            free(args->md5);
+            args->md5 = NULL;
         }
-        if (args->file_name != NULL) {
-            free(args->file_name);
-            args->file_name = NULL;
+        if (args->name != NULL) {
+            free(args->name);
+            args->name = NULL;
         }
 
         free(args);
     }
 }
+
+
+void printDownloadProgress(const DownloadList *list) {
+    if (list == NULL || list->elements == NULL) {
+        printf("No downloads to display.\n");
+        return;
+    }
+
+    printf("Download Progress:\n");
+    for (int i = 0; i < list->size; i++) {
+        
+        float progress = (float)list->elements[i].currentFileSize / list->elements[i].maxSize;
+        int percent = (int)(progress * 100);
+        int barWidth = 50; // Width of the progress bar in characters
+        printString(list->elements[i].name);
+        printString(": [");
+        int pos = (int)(barWidth * progress);
+        for (int j = 0; j < barWidth; ++j) {
+            if (j < pos) printString("=");
+            else if (j == pos) printString(">");
+            else printString(" ");
+        }
+        printInt("]", percent);
+        printInt("]", percent);
+
+        
+    }
+}
+
 
 
 //SIGNALS PHASE-----------------------------------------------------------------
@@ -152,7 +244,7 @@ void ctrl_C_function(){
     free(frame.header);
     freeSeparatedData(&separatedData, &numberOfData);
 
-    free_downloads();
+    freeDownloadList(&downloadList);
     
     
 
@@ -167,118 +259,75 @@ void ctrl_C_function(){
 
 
 
-void add_download(DownloadArgs *args) {
+void addDownload(DownloadList *list, FileArgs *args) {
     pthread_mutex_lock(&download_mutex);
-    
-    FileDownload *new_download = malloc(sizeof(FileDownload));
-    if (new_download == NULL) {
-        perror("Memory allocation failed for new download");
-        ctrl_C_function();
+    if (list->size == list->capacity) {
+        int new_capacity = list->capacity == 0 ? 1 : list->capacity * 2;
+        list->elements = realloc(list->elements, new_capacity * sizeof(DownloadElement));
+        list->capacity = new_capacity;
     }
-
-    new_download->file_name = strdup(args->file_name); // Deep copy the file name
-    new_download->totalFileSize = args->totalFileSize;
-    new_download->currentFileSize = 0;
-    new_download->active = 1;
-    new_download->next = NULL;
-
-    if (download_head == NULL) {
-        download_head = new_download;
-    } else {
-        FileDownload *current = download_head;
-        while (current->next != NULL) {
-            current = current->next;
-        }
-        current->next = new_download;
-    }
-
+    DownloadElement *new_element = &list->elements[list->size++];
+    new_element->name = strdup(args->name);
+    new_element->maxSize = args->maxSize;
+    new_element->currentFileSize = 0;
+    new_element->active = 1;
     pthread_mutex_unlock(&download_mutex);
 }
 
 
 
-void *downloadThread(void *args) {
-    
+
+void *downloadThread(void *arg) {
+    FileArgs *fileArgs = (FileArgs *)arg;
+    DownloadList *list = fileArgs->list; 
+
     Frame frameT;
     initFrame(&frameT);
     
-    int fd = open(((DownloadArgs *)args)->file_path, O_WRONLY | O_TRUNC | O_CREAT, 0666);
+    int fd = open(fileArgs->pathOfTheFile, O_WRONLY | O_TRUNC | O_CREAT, 0666);
     if (fd == -1) {
         perror("Error opening file");
         ctrl_C_function();
     }
     
-
-    int bytesReceived = 0;
-  
-    int numberOfFramesRecieved = 0;
-
-    while (bytesReceived < ((DownloadArgs *)args)->totalFileSize) {
-        numberOfFramesRecieved++;
-
+    int NumBytesWritten = 0;
+    while (NumBytesWritten < fileArgs->maxSize) {
         freeFrame(&frameT);
         initFrame(&frameT);
-        int dataLength = readFrameBinary(((DownloadArgs *)args)->socket_fd, &frameT);
+        int dataLength = readFrameBinary(fileArgs->fdAttached, &frameT);
         if (dataLength <= 0) {
             printString("Error reading frame or no data left\n");
             break;
         }
 
-        //printInt("dataLength:", dataLength);
         if (frameT.data != NULL) {
             write(fd, frameT.data, dataLength);
-            bytesReceived += dataLength;
+            NumBytesWritten += dataLength;
         }
 
-        pthread_mutex_lock(&download_mutex);
-        FileDownload *current = download_head;
-        while (current != NULL) {
-            if (strcmp(current->file_name,  ((DownloadArgs *)args)->file_name) == 0) {
-                current->currentFileSize = bytesReceived;
-                break;
-            }
-            current = current->next;
-        }
-        pthread_mutex_unlock(&download_mutex);
+        updateDownloadSize(list, fileArgs->name, NumBytesWritten);
+        //printDownloadProgress(list);
     }
+    sleep(1);
 
+    char *md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu"; // This would be replaced by a real MD5 checksum computation
 
-    // MD5 checksum
-    //char* md5sum = malloc(33 * sizeof(char));
-   
-
-    char *md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";
-
-    //calculate_md5sum(file_path, md5sum); // Assuming this function is correctly implemented
-    if (strcmp(md5sum,  ((DownloadArgs *)args)->MD5SUM_Poole) != 0) {
-        sendCheckResult(((DownloadArgs *)args)->socket_fd, 0);
+    if (strcmp(md5sum, fileArgs->md5) != 0) {
+        sendCheckResult(fileArgs->fdAttached, 0);
     } else {
-        sendCheckResult(((DownloadArgs *)args)->socket_fd, 1);
+        sendCheckResult(fileArgs->fdAttached, 1);
     }
-    //free(md5sum);
     close(fd);
 
-    //printString("\nFile succesfully recieved!");
-
-
-    pthread_mutex_lock(&download_mutex);
-    FileDownload * current = download_head;
-    while (current != NULL) {
-        if (strcmp(current->file_name,  ((DownloadArgs *)args)->file_name) == 0) {
-            current->active = 0;
-            break;
-        }
-        current = current->next;
-    }
-    pthread_mutex_unlock(&download_mutex);
-    //printString("\nFile succesfully recieved!");
+    deactivateDownload(list, fileArgs->name);
 
     if (frameT.data) free(frameT.data);
     if (frameT.header) free(frameT.header);
-   
-    freeDownloadArgs((DownloadArgs *)args);
+    
+    freeDownloadArgs(fileArgs);
     return NULL;
 }
+
 
 //-----------------------------------------------------------------
 
@@ -452,7 +501,7 @@ void manageListPlaylists(){
     }
 }
 
-void manageDownload(char ** input, int wordCount){
+void manageDownload(char ** input, int wordCount, DownloadList *list){
 
     char * song = concatenateWords(input, wordCount);
     //char * song2 = "example.txt";
@@ -481,7 +530,7 @@ void manageDownload(char ** input, int wordCount){
 
 
         pthread_t thread;
-        DownloadArgs *args = malloc(sizeof(DownloadArgs));
+        FileArgs *args = malloc(sizeof(FileArgs));
 
         char *miniBuffer;
 
@@ -489,13 +538,14 @@ void manageDownload(char ** input, int wordCount){
 
         printStringWithHeader("\nFilenameeee:", miniBuffer);
 
-        args->socket_fd = pooleSocketFd;
-        args->totalFileSize = atoi(separatedData[1]);
-        args->file_path = strdup(miniBuffer);
-        args->MD5SUM_Poole = strdup(separatedData[2]);
-        args->file_name = strdup(separatedData[0]);
+        args->fdAttached = pooleSocketFd;
+        args->maxSize = atoi(separatedData[1]);
+        args->pathOfTheFile = strdup(miniBuffer);
+        args->md5 = strdup(separatedData[2]);
+        args->name = strdup(separatedData[0]);
+        args->list = list;
 
-        add_download(args);
+        addDownload(list, args);
 
         if (pthread_create(&thread, NULL, downloadThread, args) != 0) {
             perror("Failed to create download thread");
@@ -505,27 +555,30 @@ void manageDownload(char ** input, int wordCount){
         free(miniBuffer);
 
         pthread_detach(thread);
-
     }
-
-
-
-    
     free(song);
+}
+
+void manageCheckDownloads( DownloadList *list){
+   
+    printDownloadProgress(list);
 
 }
 
 void menu() {
     char buffer[200];
     int connected = 0;
-    int active = 1;
     int inputLength;
     int numberOfWords = 0;
     int numberOfSpaces = 0;
+
+    
+    initDownloadList(&downloadList);
+    
     
     
 
-    while (active) {
+    while (1) {
         //reset for each iteration
         numberOfWords = 0;
         numberOfSpaces = 0;
@@ -589,13 +642,13 @@ void menu() {
             }
         } else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) {
             if (connected) {
-                manageDownload(input, numberOfWords);
+                manageDownload(input, numberOfWords, &downloadList);
             } else {
                 printString("Cannot download, you are not connected to HAL 9000\n");
             }
         } else if (numberOfWords == 2 && strcasecmp(input[0], "CHECK") == 0 && strcasecmp(input[1], "DOWNLOADS") == 0) {
             if (connected) {
-                printString("You have no ongoing or finished downloads\n");
+                manageCheckDownloads(&downloadList);
             } else {
                 printString("Cannot Check Downloads, you are not connected to HAL 9000\n");
             }
@@ -615,7 +668,8 @@ int main(int argc, char *argv[]){
     int Amp = 0; //Number of &
     int bowFd = -1; //BOWMAN FILE
     initFrame(&frame);
-    
+
+   
     //SIGNAL ctrl C
     signal(SIGINT, ctrl_C_function);
 

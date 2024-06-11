@@ -81,23 +81,6 @@ void openFile( char *filename, int *fd) {
 
 //PRINT ON CONSOLE-----------------------------------------------------------------------------
 
-void printLoadingBar(int max, int actual) {
-    int percentage = (actual * 100) / max;
-    
-    int barWidth = 50;
-    
-    int pos = (percentage * barWidth) / 100;
-    
-    
-    for (int i = 0; i < barWidth; ++i) {
-        if (i < pos) printString("=");
-        else if (i == pos) printString(">");
-        else printString(" ");
-    }
-    
-    printInt("] ", percentage);
-}
-
 void printStringWithHeader( char* text_,  char* string_) {
     char *buffer;
     int size = asprintf(&buffer, "%s %s\n", text_ ,string_);
