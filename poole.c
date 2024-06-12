@@ -99,12 +99,18 @@ void socketDisconnectedPoole(int socket_){
         }
 }
 
-char * createFrameBinary(uint8_t type, char *header, char *data, int dataLength) {
-    char *frame = (char *)malloc(BINARY_FRAME_SIZE); 
+char *createFrameBinary(uint8_t type, char *header, char *data, int dataLength, uint32_t id) {
     int lengthHeader = strlen(header);
+    int totalLength = 3 + lengthHeader + 4 + dataLength;  // Additional 4 bytes for the integer ID
 
-    if (lengthHeader > 255) {
-        printString("\nERROR: HEADER TOO LONG\n");
+    if (totalLength > BINARY_FRAME_SIZE) {
+        printString("\nERROR: FRAME TOO LARGE\n");
+        return NULL;
+    }
+
+    char *frame = (char *)malloc(256); 
+    if (!frame) {
+        printString("\nERROR: MEMORY ALLOCATION FAILED\n");
         return NULL;
     }
 
@@ -113,18 +119,23 @@ char * createFrameBinary(uint8_t type, char *header, char *data, int dataLength)
     frame[2] = (lengthHeader >> 8) & 0xFF;
 
     memcpy(frame + 3, header, lengthHeader);
-
-    memcpy(frame + 3 + lengthHeader, data, dataLength); 
-
-    int totalLength = 3 + lengthHeader + dataLength;
-    int pad = BINARY_FRAME_SIZE - totalLength;
-    memset(frame + totalLength, 0, pad); 
+    *(uint32_t *)(frame + 3 + lengthHeader) = htonl(id);  // Convert ID to network byte order
+    memcpy(frame + 7 + lengthHeader, data, dataLength);   // Adjust for ID size
 
     return frame;
 }
 
-void sendFileDataBinary(int socketFd, char *fileData, int fileDataLength) {
-    char *frameToSend = createFrameBinary(0x04, "FILE_DATA", fileData, fileDataLength);
+
+void sendFileDataBinary(int socketFd, char *fileData, int fileDataLength, int id) {
+    char *frameToSend = createFrameBinary(0x04, "FILE_DATA", fileData, fileDataLength, id);
+    if (frameToSend != NULL) {
+        write(socketFd, frameToSend, BINARY_FRAME_SIZE); 
+        free(frameToSend);
+    }
+}
+
+void sendEndFileDataBinary(int socketFd, int id) {
+    char *frameToSend = createFrameBinary(0x04, "END", "EMPTY", 5, id);
     if (frameToSend != NULL) {
         write(socketFd, frameToSend, BINARY_FRAME_SIZE); 
         free(frameToSend);
@@ -149,16 +160,17 @@ void* downloadThread(void* args){
             }
             moreBytesToread = 0; 
         } else {
-            sendFileDataBinary(sendThread->fd, dataBuffer, bytesAlreadyRead);
+            sendFileDataBinary(sendThread->fd, dataBuffer, bytesAlreadyRead, sendThread->id);
         }
     }
 
     printString("\nSending Finished\n");
 
     printInt("WAITING FOR CONFIRMATION:", sendThread->fd);
-    readFrame(sendThread->fd, &frame2);
+    //readFrame(sendThread->fd, &frame2);
+    sendEndFileDataBinary(sendThread->fd, sendThread->id);
     printFrame(&frame2);
-
+/*
 
     if (strcmp(frame2.header, "CHECK_OK") == 0){
         printString("\nCONFIRMATION RECEIVED!\n");
@@ -166,6 +178,7 @@ void* downloadThread(void* args){
         printString("\nFILE NOT RECEIVED CORRECTLY\n");
     }
     
+    */
     close(fd); 
 
     free(sendThread->filePath); 
@@ -176,7 +189,7 @@ void* downloadThread(void* args){
 }
 
 
-void sendSongToBowman(int socketToSendSong, char * songName){
+void sendSongToBowman(int socketToSendSong, char * songName, int idSending){
     char * songPath = NULL;
     asprintf(&songPath, "%s/%s", poole.folder, songName);  // Memory allocated here
 
@@ -186,7 +199,7 @@ void sendSongToBowman(int socketToSendSong, char * songName){
 
     char* md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";  // Hardcoded value used directly
 
-    int idSending = rand() % 1000;
+    
     char *miniBuffer;
     asprintf(&miniBuffer, "%s&%d&%s&%d", songName, songSize, md5sum, idSending);  // Memory allocated here
     sendFileInfo(socketToSendSong, miniBuffer);
@@ -440,13 +453,15 @@ int main(int argc, char *argv[]) {
                                 freeSongsList(&songs, numFrames, numberOfSongsPerFrame);
                                 if(found != 1){
                                     printString("\nNo song that matches that name :(\n");
+                                    
                                     sendSoungNotFound(i);
 
 
                                 }else{
                                     printString("\nThe song exists!\n");
+                                    int idSending = rand() % 1000;
                                     
-                                    sendSongToBowman(i, strdup(separatedData[0]));
+                                    sendSongToBowman(i, strdup(separatedData[0]), idSending);
 
                                     
 
@@ -483,8 +498,9 @@ int main(int argc, char *argv[]) {
 
                                         
                                         for(int l = 0; l < finalPlaylists[mom].numSongs ; l++){
+                                            int idSending = rand() % 1000;
                                             printStringWithHeader("\tDownloading -", finalPlaylists[mom].songs[l]);
-                                            sendSongToBowman(i, strdup(finalPlaylists[mom].songs[l]));
+                                            sendSongToBowman(i, strdup(finalPlaylists[mom].songs[l]), idSending);
                                         }
                                     }
                                     

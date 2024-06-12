@@ -25,8 +25,18 @@ typedef struct {
     int maxSize; 
     char *pathOfTheFile;
     char *md5;
+    int id;
     DownloadList * list;
 } FileArgs;
+
+typedef struct {
+    char *name;
+    int fdAttached;
+    int maxSize; 
+    char *pathOfTheFile;
+    char *md5;
+    int id;
+} Download;
 
 Bowman bowman;
 int discoverySocketFd = -1;
@@ -34,8 +44,12 @@ int pooleSocketFd = -1;
 char** separatedData;
 int numberOfData = 0;
 Frame frame;
-DownloadList downloadList;
+DownloadList list;
 
+
+
+int numberOfSongsToDownload = 0;
+int finishedDownloads = 0;
 
 
 
@@ -61,28 +75,48 @@ void removeAmp(char *buffer,  int *Amp) {
 }
 
 int readFrameBinary(int socketFd, Frame *frame) {
-    freeFrame(frame);
+   freeFrame(frame);
     initFrame(frame);
 
     char buffer[256];
     int numBytes = read(socketFd, buffer, 256);
-
     if (numBytes <= 0) {
-        return numBytes;  
+        return numBytes;
     }
 
     frame->type = buffer[0];
     frame->headerLength = (buffer[2] << 8) | buffer[1];
-
-    frame->header = (char *)malloc((frame->headerLength + 1) * sizeof(char));
+    frame->header = (char *)malloc(((frame->headerLength) + 1) * sizeof(char));
     memcpy(frame->header, buffer + 3, frame->headerLength);
-    frame->header[frame->headerLength] = '\0'; 
+	(frame->header)[((frame->headerLength))] = '\0';
 
-    int dataLength = numBytes - 3 - frame->headerLength; 
-    frame->data = (char *)malloc(dataLength); 
-    memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
+    if(strcmp(frame->header,"FILE_DATA") == 0){
+        // Read the integer ID
+        if (numBytes >= 3 + frame->headerLength + 4) { // Ensure there are enough bytes for the ID
+            frame->id = ntohl(*(uint32_t *)(buffer + 3 + frame->headerLength)); // Convert from network byte order
+        } else {
+            return -1;  // Not enough data received
+        }
+        // Read the data
+        int dataStart = 3 + frame->headerLength + 4;
+        int dataLength = numBytes - dataStart;
+        frame->data = (char *)malloc(dataLength);
+        memcpy(frame->data, buffer + dataStart, dataLength);
 
-    return BINARY_SENDING_SIZE; 
+        return BINARY_SENDING_SIZE;
+
+    }else{
+
+        int dataLength = numBytes - (3 + frame->headerLength); 
+   
+        frame->data = (char *)malloc(dataLength * sizeof(char));
+        memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
+        (frame->data)[dataLength - 1] = '\0'; 
+
+        return dataLength;
+    }
+
+    
 }
 
 //DOWNLOADS-----------------------------------------------------------------------------------
@@ -260,7 +294,7 @@ void ctrl_C_function(){
 
 
 
-void addDownload(DownloadList *list, FileArgs *args) {
+void addDownload( DownloadList *list, Download *args) {
     pthread_mutex_lock(&download_mutex);
     if (list->size == list->capacity) {
         int new_capacity = list->capacity == 0 ? 1 : list->capacity * 2;
@@ -567,7 +601,100 @@ void manageDownload(char ** input, int wordCount, DownloadList *list){
     free(song);
 }
 
-void manageDownloadPlaylist(char ** input, int wordCount, DownloadList *list){
+void *downloadPlaylistThread(void *arg) {
+    (void)arg;
+
+    Download *downloads = malloc(numberOfSongsToDownload * sizeof(Download));
+
+    int fileDescriptors[numberOfSongsToDownload];
+    int NumBytesWritten[numberOfSongsToDownload];
+
+    char** separatedData;
+    int numberOfData = 0;
+    Frame frameD;
+    initFrame(&frameD);
+    
+    int numNewFilesReceived = 0;
+    
+    
+
+
+    while(finishedDownloads < numberOfSongsToDownload){
+            readFrameBinary(pooleSocketFd, &frameD);
+            //printFrame(&frameD);
+            numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
+
+            if(strcmp(frameD.header, "NEW_FILE") == 0){
+                char *miniBuffer;
+                printStringWithHeader("\nNEW Filenameeee:", miniBuffer);
+                asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
+
+                downloads[numNewFilesReceived].pathOfTheFile = strdup(miniBuffer);
+                downloads[numNewFilesReceived].fdAttached = pooleSocketFd;
+                downloads[numNewFilesReceived].maxSize =  atoi(separatedData[1]);
+                downloads[numNewFilesReceived].id = atoi(separatedData[3]);
+                downloads[numNewFilesReceived].md5 = strdup(separatedData[2]);
+                downloads[numNewFilesReceived].name = strdup(separatedData[0]);
+
+                fileDescriptors[numNewFilesReceived] = open( strdup(miniBuffer), O_WRONLY | O_TRUNC | O_CREAT, 0666);
+                if (fileDescriptors[numNewFilesReceived] == -1) {
+                    perror("Error opening file");
+                    ctrl_C_function();
+                }
+
+                NumBytesWritten[numNewFilesReceived] = 0;
+
+
+
+                addDownload(&list, &(downloads[numNewFilesReceived]));
+
+                free(miniBuffer);
+                numNewFilesReceived++;
+
+            }else if(strcmp(frameD.header, "FILE_DATA") == 0){
+                for(int er = 0; er < numNewFilesReceived; er++){
+                    if((int)frameD.id == downloads[er].id){
+                        if (NumBytesWritten[er] < downloads[er].maxSize) {
+                            if (frameD.data != NULL) {
+                               // printf("Data pointer: %p, Data content: %02x\n", frameT.data, *frameT.data);
+                                write(fileDescriptors[er], frameD.data, BINARY_SENDING_SIZE);
+                                NumBytesWritten[er] += BINARY_SENDING_SIZE;
+                            }
+
+                            updateDownloadSize(&list, downloads[er].name, NumBytesWritten[er]);
+                            //printDownloadProgress(list);
+                        }
+                        
+
+                    }
+                }
+                
+            }else if(strcmp(frameD.header, "END") == 0){
+                for(int er = 0; er < numNewFilesReceived; er++){
+                    if((int)frameD.id == downloads[er].id){
+
+                        deactivateDownload(&list, downloads[er].name);
+
+                        
+                        finishedDownloads++;
+                        close(fileDescriptors[er]);
+
+
+                    }
+                }
+                
+            }
+
+
+    }
+
+    return NULL;
+
+    
+}
+
+
+void manageDownloadPlaylist(char ** input, int wordCount){
 
     char * playlistName = concatenateWords2(input, wordCount);
    
@@ -598,8 +725,21 @@ void manageDownloadPlaylist(char ** input, int wordCount, DownloadList *list){
 
         printInt("numberOfSongsToDownload:", atoi(separatedData[0]));
 
-        int numberOfSongsToDownload = atoi(separatedData[0]);
+        numberOfSongsToDownload = atoi(separatedData[0]);
+        finishedDownloads = 0;
+        pthread_t thread;
 
+        if (pthread_create(&thread, NULL, downloadPlaylistThread, NULL) != 0) {
+            perror("Failed to create download thread");
+            
+            ctrl_C_function();
+        }
+
+        pthread_detach(thread);
+
+        
+//------------BORRAR
+/*
         for(int we = 0; we < numberOfSongsToDownload; we++ ){
             readFrame(pooleSocketFd, &frame);
             printFrame(&frame);
@@ -620,6 +760,7 @@ void manageDownloadPlaylist(char ** input, int wordCount, DownloadList *list){
             args->pathOfTheFile = strdup(miniBuffer);
             args->md5 = strdup(separatedData[2]);
             args->name = strdup(separatedData[0]);
+            args->id = atoi(separatedData[3]);
             args->list = list;
 
             addDownload(list, args);
@@ -633,6 +774,7 @@ void manageDownloadPlaylist(char ** input, int wordCount, DownloadList *list){
 
             pthread_detach(thread);
         }
+        */
 
 
         
@@ -723,19 +865,19 @@ void menu() {
             }
         } else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0 && strcasecmp(input[1], "PLAYLIST") == 0) {
             if (connected) {
-                manageDownloadPlaylist(input, numberOfWords, &downloadList);
+                manageDownloadPlaylist(input, numberOfWords);
             } else {
                 printString("Cannot download, you are not connected to HAL 9000\n");
             }
         } else if (numberOfWords == 2 && strcasecmp(input[0], "CHECK") == 0 && strcasecmp(input[1], "DOWNLOADS") == 0) {
             if (connected) {
-                manageCheckDownloads(&downloadList);
+                manageCheckDownloads(&list);
             } else {
                 printString("Cannot Check Downloads, you are not connected to HAL 9000\n");
             }
         }else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) {
             if (connected) {
-                manageDownload(input, numberOfWords, &downloadList);
+                manageDownload(input, numberOfWords, &list);
             } else {
                 printString("Cannot download, you are not connected to HAL 9000\n");
             }

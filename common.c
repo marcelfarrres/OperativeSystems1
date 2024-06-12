@@ -174,6 +174,8 @@ void printFrame(Frame * frame){
     printInt("┃ HEADERLenght:", frame->headerLength);
     printStringWithHeader("┃ HEADER:", frame->header);
     printStringWithHeader("┃ DATA:", frame->data);
+    printInt("┃ ID:", frame->id);
+
     printString("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n");
 
     
@@ -406,18 +408,29 @@ int createServer(int inputPort) {
 //FRAMES-----------------------------------------------------------------------------
 
 
-void initFrame(Frame * frame){
-	frame->type = 0;
-    frame->headerLength = (uint16_t) 0;
+void initFrame(Frame *frame) {
+    if (frame == NULL) return;
+
+    frame->type = 0;
+    frame->headerLength = 0;
+    frame->id = 0;  // Set the integer ID to 0
+
     frame->header = NULL;
     frame->data = NULL;
 }
 
-void freeFrame(Frame * frame){
-	
-    free(frame->header);
-    free(frame->data);
+void freeFrame(Frame *frame) {
+    if (frame == NULL) return;
+
+    free(frame->header);  // Free the memory for the header
+    frame->header = NULL;
+
+    free(frame->data);    // Free the memory for the data
+    frame->data = NULL;
+
+    // No need to free 'id' since it's an integer and not dynamically allocated
 }
+
 
 char * createFrame(uint8_t type,  char *header,  char *data) {
     char *frame = (char *)malloc(256);
@@ -462,14 +475,12 @@ int readFrame(int socketFd, Frame * frame) {
 
     char buffer[256];
     int numBytes = read(socketFd, buffer, 256);
-
     if (numBytes <= 0) {
         return numBytes;
     }
 
     frame->type = buffer[0];
     frame->headerLength = (buffer[2] << 8) | buffer[1];
-
     frame->header = (char *)malloc(((frame->headerLength) + 1) * sizeof(char));
     memcpy(frame->header, buffer + 3, frame->headerLength);
 	(frame->header)[((frame->headerLength))] = '\0';

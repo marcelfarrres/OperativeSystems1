@@ -33,12 +33,13 @@ typedef struct{
     char** bowmans;
 }PooleServer;
 
-typedef struct{
+typedef struct {
     uint8_t type;
     uint16_t headerLength;
     char *header;
+    uint32_t id;  
     char *data;
-}Frame; 
+} Frame;
 
 typedef struct{
     char *name;
