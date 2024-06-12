@@ -38,6 +38,12 @@ typedef struct {
     int id;
 } Download;
 
+typedef struct {
+    int numberOfSongsToDownload;
+    int finishedDownloads;
+} ArgsForDownloadPlaylist;
+
+
 Bowman bowman;
 int discoverySocketFd = -1;
 int pooleSocketFd = -1;
@@ -48,8 +54,7 @@ DownloadList list;
 
 
 
-int numberOfSongsToDownload = 0;
-int finishedDownloads = 0;
+
 
 
 
@@ -602,12 +607,12 @@ void manageDownload(char ** input, int wordCount){
 }
 
 void *downloadPlaylistThread(void *arg) {
-    (void)arg;
+    ArgsForDownloadPlaylist *args = (ArgsForDownloadPlaylist *)arg;
 
-    Download *downloads = malloc(numberOfSongsToDownload * sizeof(Download));
+    Download *downloads = malloc(args->numberOfSongsToDownload * sizeof(Download));
 
-    int fileDescriptors[numberOfSongsToDownload];
-    int NumBytesWritten[numberOfSongsToDownload];
+    int fileDescriptors[args->numberOfSongsToDownload];
+    int NumBytesWritten[args->numberOfSongsToDownload];
 
     char** separatedData;
     int numberOfData = 0;
@@ -616,7 +621,7 @@ void *downloadPlaylistThread(void *arg) {
     
     int numNewFilesReceived = 0;
     
-    while(finishedDownloads < numberOfSongsToDownload){
+    while(args->finishedDownloads < args->numberOfSongsToDownload){
             readFrameBinary(pooleSocketFd, &frameD);
             //printFrame(&frameD);
             numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
@@ -641,11 +646,7 @@ void *downloadPlaylistThread(void *arg) {
                 }
 
                 NumBytesWritten[numNewFilesReceived] = 0;
-
-
-
                 addDownload(&list, &(downloads[numNewFilesReceived]));
-
                 free(miniBuffer);
                 numNewFilesReceived++;
 
@@ -658,36 +659,16 @@ void *downloadPlaylistThread(void *arg) {
                                 write(fileDescriptors[er], frameD.data, BINARY_SENDING_SIZE);
                                 NumBytesWritten[er] += BINARY_SENDING_SIZE;
                             }
-
                             updateDownloadSize(&list, downloads[er].name, NumBytesWritten[er]);
-                            //printDownloadProgress(list);
-                        }else{
-                        printString("\nSE PASO\n");
-                            
                         }
-                        
-
                     }
                 }
-                
             }else if(strcmp(frameD.header, "END") == 0){
-                  printFrame(&frameD);
                 for(int er = 0; er < numNewFilesReceived; er++){
-                    
-                    printInt("(int)frameD.id :", (int)frameD.id );
-                    printInt("downloads[er].idd :", downloads[er].id);
-                    printString("\n");
-
                     if((int)frameD.id == downloads[er].id){
-                        printString("\nEND RECIIIIIIII\n");
-
                         deactivateDownload(&list, downloads[er].name);
-
-                        
-                        finishedDownloads++;
+                        args->finishedDownloads++;
                         close(fileDescriptors[er]);
-
-
                     }
                 }
                 
@@ -696,7 +677,7 @@ void *downloadPlaylistThread(void *arg) {
 
     }
 
-    printString("\nWE GOT OUT THE WHILE!\n");
+ 
 
     return NULL;
 
@@ -735,11 +716,19 @@ void manageDownloadPlaylist(char ** input, int wordCount){
 
         printInt("numberOfSongsToDownload:", atoi(separatedData[0]));
 
-        numberOfSongsToDownload = atoi(separatedData[0]);
-        finishedDownloads = 0;
+
+
+
+        ArgsForDownloadPlaylist * argsFor = malloc(sizeof(ArgsForDownloadPlaylist));
+        
+        argsFor->finishedDownloads = 0;
+        argsFor->numberOfSongsToDownload = atoi(separatedData[0]);
+
+
+       
         pthread_t thread;
 
-        if (pthread_create(&thread, NULL, downloadPlaylistThread, NULL) != 0) {
+        if (pthread_create(&thread, NULL, downloadPlaylistThread, argsFor) != 0) {
             perror("Failed to create download thread");
             
             ctrl_C_function();
