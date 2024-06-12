@@ -90,7 +90,7 @@ int readFrameBinary(int socketFd, Frame *frame) {
     memcpy(frame->header, buffer + 3, frame->headerLength);
 	(frame->header)[((frame->headerLength))] = '\0';
 
-    if(strcmp(frame->header,"FILE_DATA") == 0){
+    if(strcmp(frame->header,"FILE_DATA") == 0 || strcmp(frame->header,"END") == 0){
         // Read the integer ID
         if (numBytes >= 3 + frame->headerLength + 4) { // Ensure there are enough bytes for the ID
             frame->id = ntohl(*(uint32_t *)(buffer + 3 + frame->headerLength)); // Convert from network byte order
@@ -352,11 +352,11 @@ void *downloadThread(void *arg) {
 
     if (strcmp(md5sum, fileArgs->md5) != 0) {
         sendCheckResult(fileArgs->fdAttached, 0);
-        printInt("[FAILED M5]sendCheckResult->FD:", fileArgs->fdAttached );
+        //printInt("[FAILED M5]sendCheckResult->FD:", fileArgs->fdAttached );
 
     } else {
         sendCheckResult(fileArgs->fdAttached, 1);
-        printInt("[GOOD M5]sendCheckResult->FD:", fileArgs->fdAttached );
+        //printInt("[GOOD M5]sendCheckResult->FD:", fileArgs->fdAttached );
 
     }
     close(fd);
@@ -661,6 +661,9 @@ void *downloadPlaylistThread(void *arg) {
 
                             updateDownloadSize(&list, downloads[er].name, NumBytesWritten[er]);
                             //printDownloadProgress(list);
+                        }else{
+                        printString("\nSE PASO\n");
+                            
                         }
                         
 
@@ -668,8 +671,15 @@ void *downloadPlaylistThread(void *arg) {
                 }
                 
             }else if(strcmp(frameD.header, "END") == 0){
+                  printFrame(&frameD);
                 for(int er = 0; er < numNewFilesReceived; er++){
+                    
+                    printInt("(int)frameD.id :", (int)frameD.id );
+                    printInt("downloads[er].idd :", downloads[er].id);
+                    printString("\n");
+
                     if((int)frameD.id == downloads[er].id){
+                        printString("\nEND RECIIIIIIII\n");
 
                         deactivateDownload(&list, downloads[er].name);
 
@@ -685,6 +695,8 @@ void *downloadPlaylistThread(void *arg) {
 
 
     }
+
+    printString("\nWE GOT OUT THE WHILE!\n");
 
     return NULL;
 
@@ -779,7 +791,7 @@ void menu() {
                     
                 }
                 if(buffer[j + 1] == '\0'){
-                        buffer[j] = '\0'; //erase the last space if any
+                        buffer[j] = '\0'; 
                     }
             }
         }

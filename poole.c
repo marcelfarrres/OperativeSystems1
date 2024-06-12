@@ -142,7 +142,7 @@ void sendFileDataBinary(int socketFd, char *fileData, int fileDataLength, int id
 }
 
 void sendEndFileDataBinary(int socketFd, int id) {
-    char *frameToSend = createFrameBinary(0x04, "END", "EMPTY", 5, id);
+    char *frameToSend = createFrameBinary(0x04, "END", "EMPTY", 6, id);
     if (frameToSend != NULL) {
         write(socketFd, frameToSend, BINARY_FRAME_SIZE); 
         free(frameToSend);
@@ -172,23 +172,9 @@ void* downloadThread(void* args){
     }
 
     printString("\nSending Finished\n");
-
-    printInt("WAITING FOR CONFIRMATION:", sendThread->fd);
-    //readFrame(sendThread->fd, &frame2);
-    //sendEndFileDataBinary(sendThread->fd, sendThread->id);
-
-    printInt("All file sent:", sendThread->id);
-
-    //printFrame(&frame2);
-/*
-
-    if (strcmp(frame2.header, "CHECK_OK") == 0){
-        printString("\nCONFIRMATION RECEIVED!\n");
-    } else {
-        printString("\nFILE NOT RECEIVED CORRECTLY\n");
-    }
     
-    */
+    sendEndFileDataBinary(sendThread->fd, sendThread->id);
+
     close(fd); 
 
     free(sendThread->filePath); 

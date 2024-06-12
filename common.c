@@ -951,7 +951,7 @@ void sendCheckResult(int socketFd, int i) {
         if(write(socketFd, frameToSend, MAX_FRAME_SIZE) < 1){
             printString("ERROR: Sending OK confirmation");
         }else{
-            printInt("We wrote CHECK_OK succesfully on socket:", socketFd);
+            //printInt("We wrote CHECK_OK succesfully on socket:", socketFd);
         };
         free(frameToSend);
     }else{
