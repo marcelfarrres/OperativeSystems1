@@ -33,7 +33,7 @@ char *read_until(int fd, char end);
 char *concatenateWords(char **words, int wordCount);
 char *concatenateWords2(char **words, int wordCount);
 
-
+int calculateMD5Checksum(const char *filePath, char *md5Checksum);
 
 
 //INPUT PHASE-----------------------------------------------------------------------------

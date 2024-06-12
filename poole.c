@@ -194,13 +194,20 @@ void sendSongToBowman(int socketToSendSong, char * songName, int idSending){
     openFile(songPath, &fd);
     int songSize = (int) lseek(fd, 0, SEEK_END);
 
-    char* md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu";  // Hardcoded value used directly
+    char* md5sum = malloc(33 * sizeof(char));  // Hardcoded value used directly
+    printStringWithHeader("CHECKSUM FOR FILE:", songPath);
+
+    calculateMD5Checksum(songPath, md5sum);
+    printStringWithHeader("CHECKSUM CALCULATED:", md5sum);
+    //char* md5sum = "malloc(33 * sizeof(char))";  // Hardcoded value used directly
+
 
     
     char *miniBuffer;
     asprintf(&miniBuffer, "%s&%d&%s&%d", songName, songSize, md5sum, idSending);  // Memory allocated here
     sendFileInfo(socketToSendSong, miniBuffer);
     free(miniBuffer);  // Freeing memory after use
+    free(md5sum);
 
     pthread_t thread;
     SendThread *args = malloc(sizeof(SendThread));  // Memory allocated here
