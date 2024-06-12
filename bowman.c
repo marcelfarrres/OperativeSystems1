@@ -38,12 +38,6 @@ typedef struct {
     int id;
 } Download;
 
-typedef struct {
-    int numberOfSongsToDownload;
-    int finishedDownloads;
-} ArgsForDownloadPlaylist;
-
-
 Bowman bowman;
 int discoverySocketFd = -1;
 int pooleSocketFd = -1;
@@ -54,8 +48,13 @@ DownloadList list;
 
 
 
-
-
+int numberOfSongsToDownload = 0;
+int finishedDownloads = 0;
+int numNewFilesReceived = 0;
+Download *downloads = NULL;
+int fileDescriptors[100];
+int NumBytesWritten[100];
+int downloadThreadAlreadyCreated = 0;
 
 
 
@@ -607,21 +606,25 @@ void manageDownload(char ** input, int wordCount){
 }
 
 void *downloadPlaylistThread(void *arg) {
-    ArgsForDownloadPlaylist *args = (ArgsForDownloadPlaylist *)arg;
+    (void)arg;
 
-    Download *downloads = malloc(args->numberOfSongsToDownload * sizeof(Download));
+    downloadThreadAlreadyCreated = 1;
 
-    int fileDescriptors[args->numberOfSongsToDownload];
-    int NumBytesWritten[args->numberOfSongsToDownload];
+    downloads = malloc(numberOfSongsToDownload * sizeof(Download));
+
+    finishedDownloads = 0;
+    numNewFilesReceived = 0;
+   
+    
 
     char** separatedData;
     int numberOfData = 0;
     Frame frameD;
     initFrame(&frameD);
     
-    int numNewFilesReceived = 0;
     
-    while(args->finishedDownloads < args->numberOfSongsToDownload){
+    
+    while(finishedDownloads < numberOfSongsToDownload){
             readFrameBinary(pooleSocketFd, &frameD);
             //printFrame(&frameD);
             numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
@@ -667,7 +670,7 @@ void *downloadPlaylistThread(void *arg) {
                 for(int er = 0; er < numNewFilesReceived; er++){
                     if((int)frameD.id == downloads[er].id){
                         deactivateDownload(&list, downloads[er].name);
-                        args->finishedDownloads++;
+                        finishedDownloads++;
                         close(fileDescriptors[er]);
                     }
                 }
@@ -677,7 +680,8 @@ void *downloadPlaylistThread(void *arg) {
 
     }
 
- 
+
+    downloadThreadAlreadyCreated = 0;
 
     return NULL;
 
@@ -716,25 +720,28 @@ void manageDownloadPlaylist(char ** input, int wordCount){
 
         printInt("numberOfSongsToDownload:", atoi(separatedData[0]));
 
-
-
-
-        ArgsForDownloadPlaylist * argsFor = malloc(sizeof(ArgsForDownloadPlaylist));
+        numberOfSongsToDownload = numberOfSongsToDownload + atoi(separatedData[0]);
         
-        argsFor->finishedDownloads = 0;
-        argsFor->numberOfSongsToDownload = atoi(separatedData[0]);
+        printInt("numberOfSongsToDownload:", numberOfSongsToDownload);
 
+        if(downloadThreadAlreadyCreated == 1){
+            printString("\nThread Already Created\n");
 
-       
-        pthread_t thread;
-
-        if (pthread_create(&thread, NULL, downloadPlaylistThread, argsFor) != 0) {
-            perror("Failed to create download thread");
             
-            ctrl_C_function();
-        }
+        }else{
+            printString("\nThread Not Already Created\n");
+            pthread_t thread;
 
-        pthread_detach(thread);
+            if (pthread_create(&thread, NULL, downloadPlaylistThread, NULL) != 0) {
+                perror("Failed to create download thread");
+                
+                ctrl_C_function();
+            }
+    
+            pthread_detach(thread);
+            
+        }
+        
 
         
     }
@@ -753,6 +760,7 @@ void menu() {
     int inputLength;
     int numberOfWords = 0;
     int numberOfSpaces = 0;
+    downloadThreadAlreadyCreated = 0;
 
     
     initDownloadList(&list);

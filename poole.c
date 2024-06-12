@@ -159,6 +159,7 @@ void* downloadThread(void* args){
     int moreBytesToread = 1;
 
     while (moreBytesToread == 1) {
+        
         char dataBuffer[BINARY_SENDING_SIZE];
         int bytesAlreadyRead = read(fd, dataBuffer, sizeof(dataBuffer)); 
         if (bytesAlreadyRead <= 0) {
