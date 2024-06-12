@@ -60,6 +60,28 @@ char *concatenateWords(char **words, int wordCount) {
     return result;
 }
 
+char *concatenateWords2(char **words, int wordCount) {
+    int totalLength = 0;
+    for (int i = 2; i < wordCount; ++i) {
+        totalLength += strlen(words[i]);
+        if (i < wordCount - 1) totalLength++; 
+    }
+
+    char *result = (char *)malloc((totalLength + 1) * sizeof(char)); 
+    if (!result) {
+        printString("\nMemory allocation failed\n");
+        return NULL;
+    }
+
+    result[0] = '\0'; 
+    for (int i = 2; i < wordCount; ++i) {
+        strcat(result, words[i]);
+        if (i < wordCount - 1) strcat(result, " ");
+    }
+
+    return result;
+}
+
 
 
 
@@ -891,7 +913,7 @@ void sendDownloadSong(int socketFd,  char * songName) {
     free(frameToSend);
 }
 
-void downloadPlaylist(int socketFd,  char * playlistName) {
+void sendDownloadPlaylist(int socketFd,  char * playlistName) {
     char * frameToSend = createFrame(0x03, "DOWNLOAD_LIST", playlistName);
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
@@ -915,11 +937,17 @@ void sendFileData(int socketFd,  char * fileData) {
 void sendCheckResult(int socketFd, int i) {
     if(i != 0){
         char * frameToSend = createFrame(0x05, "CHECK_OK", "EMPTY");
-        write(socketFd, frameToSend, MAX_FRAME_SIZE);
+        if(write(socketFd, frameToSend, MAX_FRAME_SIZE) < 1){
+            printString("ERROR: Sending OK confirmation");
+        }else{
+            printInt("We wrote CHECK_OK succesfully on socket:", socketFd);
+        };
         free(frameToSend);
     }else{
         char * frameToSend = createFrame(0x05, "CHECK_KO", "EMPTY");
-        write(socketFd, frameToSend, MAX_FRAME_SIZE);
+        if(write(socketFd, frameToSend, MAX_FRAME_SIZE) < 1){
+            printString("ERROR: Sending KO confirmation");
+        };
         free(frameToSend);
     }
     
@@ -969,5 +997,16 @@ void sendSoungNotFound(int socketFd) {
     free(frameToSend);
 }
 
+void sendPlayListNotFound(int socketFd) {
+    char * frameToSend = createFrame(0x03, "PLAYLIST_NOT_FOUND", "EMPTY");
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+
+void sendPlayListFound(int socketFd, char * fileData) {
+    char * frameToSend = createFrame(0x03, "PLAYLIST_FOUND", fileData);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
 
 

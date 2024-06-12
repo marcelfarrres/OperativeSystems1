@@ -155,7 +155,10 @@ void* downloadThread(void* args){
 
     printString("\nSending Finished\n");
 
+    printInt("WAITING FOR CONFIRMATION:", sendThread->fd);
     readFrame(sendThread->fd, &frame2);
+    printFrame(&frame2);
+
 
     if (strcmp(frame2.header, "CHECK_OK") == 0){
         printString("\nCONFIRMATION RECEIVED!\n");
@@ -163,19 +166,19 @@ void* downloadThread(void* args){
         printString("\nFILE NOT RECEIVED CORRECTLY\n");
     }
     
-    close(fd); // Close the file descriptor
+    close(fd); 
 
-    free(sendThread->filePath); // Free the filePath allocated with strdup
-    free(sendThread); // Free the SendThread structure
-    freeFrame(&frame2); // Assuming this function properly frees anything allocated within Frame
+    free(sendThread->filePath); 
+    free(sendThread); 
+    freeFrame(&frame2); 
     
     return NULL;    
 }
 
 
-void sendSongToBowman(int socketToSendSong){
+void sendSongToBowman(int socketToSendSong, char * songName){
     char * songPath = NULL;
-    asprintf(&songPath, "%s/%s", poole.folder, separatedData[0]);  // Memory allocated here
+    asprintf(&songPath, "%s/%s", poole.folder, songName);  // Memory allocated here
 
     int fd = -1;
     openFile(songPath, &fd);
@@ -185,7 +188,7 @@ void sendSongToBowman(int socketToSendSong){
 
     int idSending = rand() % 1000;
     char *miniBuffer;
-    asprintf(&miniBuffer, "%s&%d&%s&%d", separatedData[0], songSize, md5sum, idSending);  // Memory allocated here
+    asprintf(&miniBuffer, "%s&%d&%s&%d", songName, songSize, md5sum, idSending);  // Memory allocated here
     sendFileInfo(socketToSendSong, miniBuffer);
     free(miniBuffer);  // Freeing memory after use
 
@@ -443,9 +446,53 @@ int main(int argc, char *argv[]) {
                                 }else{
                                     printString("\nThe song exists!\n");
                                     
-                                    sendSongToBowman(i);
+                                    sendSongToBowman(i, strdup(separatedData[0]));
 
                                     
+
+
+                                }
+
+
+                            }
+
+
+                        }else if(strcmp(frame.header, "DOWNLOAD_LIST") == 0){
+                            printFrame(&frame);
+                            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+                            printStringWithHeader("DownLoading Playlist: ", separatedData[0]);
+                            //check if the song exists:
+
+                            Playlist *finalPlaylists;
+                            int finalNumPlaylists;
+                            int found = 0;
+                            char *miniBuffer;
+
+
+
+
+
+                            if (readPlaylistsFromFolder( poole.folder, &finalPlaylists, &finalNumPlaylists) == 1) {
+                                for(int mom = 0; mom < finalNumPlaylists; mom++){
+                                    if(strcmp(finalPlaylists[mom].name, separatedData[0]) == 0){ 
+                                        found = 1;
+                                        printString("\nThe playlists exists!\n");
+                                        asprintf(&miniBuffer, "%d& ", finalPlaylists[mom].numSongs);
+                                        sendPlayListFound(i, miniBuffer );
+                                        free(miniBuffer);
+
+                                        
+                                        for(int l = 0; l < finalPlaylists[mom].numSongs ; l++){
+                                            printStringWithHeader("\tDownloading -", finalPlaylists[mom].songs[l]);
+                                            sendSongToBowman(i, strdup(finalPlaylists[mom].songs[l]));
+                                        }
+                                    }
+                                    
+                                }
+                                freePlaylists(finalPlaylists, finalNumPlaylists);
+                                if(found != 1){
+                                    printStringWithHeader("\nNo playlist that matches that name :( :", separatedData[0]);
+                                    sendPlayListNotFound(i);
 
 
                                 }

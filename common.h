@@ -31,6 +31,8 @@
 //VERY USED FUNCTIONS-----------------------------------------------------------------------------
 char *read_until(int fd, char end);
 char *concatenateWords(char **words, int wordCount);
+char *concatenateWords2(char **words, int wordCount);
+
 
 
 
@@ -101,7 +103,7 @@ void sendListPlaylists(int socketFd);
 void sendPlaylistsResponse(int socketFd,  char * playlists);
 
 void sendDownloadSong(int socketFd,  char * songName);
-void downloadPlaylist(int socketFd,  char * playlistName);
+void sendDownloadPlaylist(int socketFd,  char * playlistName);
 
 void sendFileInfo(int socketFd,  char * fileInfo);
 void sendFileData(int socketFd,  char * fileData);
@@ -117,6 +119,8 @@ void sendUnknownFrame(int socketFd);
 //EXTRA for diconnection bowman from discovery:
 void sendRemoveConnectionBowman(int socketFd,  char * userName);
 void sendSoungNotFound(int socketFd);
+void sendPlayListNotFound(int socketFd);
+void sendPlayListFound(int socketFd, char * fileData);
 
 
 

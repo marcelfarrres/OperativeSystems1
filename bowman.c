@@ -176,8 +176,9 @@ void printDownloadProgress(const DownloadList *list) {
             else if (j == pos) printString(">");
             else printString(" ");
         }
-        printInt("]", percent);
-        printInt("]", percent);
+        printString("] ");
+        printOnlyInt( percent);
+        printString("% \n");
 
         
     }
@@ -292,6 +293,7 @@ void *downloadThread(void *arg) {
     
     int NumBytesWritten = 0;
     while (NumBytesWritten < fileArgs->maxSize) {
+        
         freeFrame(&frameT);
         initFrame(&frameT);
         int dataLength = readFrameBinary(fileArgs->fdAttached, &frameT);
@@ -301,21 +303,27 @@ void *downloadThread(void *arg) {
         }
 
         if (frameT.data != NULL) {
+           // printf("Data pointer: %p, Data content: %02x\n", frameT.data, *frameT.data);
+
             write(fd, frameT.data, dataLength);
             NumBytesWritten += dataLength;
         }
 
         updateDownloadSize(list, fileArgs->name, NumBytesWritten);
-        //printDownloadProgress(list);
+       // printDownloadProgress(list);
     }
-    sleep(1);
+    
 
     char *md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu"; // This would be replaced by a real MD5 checksum computation
 
     if (strcmp(md5sum, fileArgs->md5) != 0) {
         sendCheckResult(fileArgs->fdAttached, 0);
+        printInt("[FAILED M5]sendCheckResult->FD:", fileArgs->fdAttached );
+
     } else {
         sendCheckResult(fileArgs->fdAttached, 1);
+        printInt("[GOOD M5]sendCheckResult->FD:", fileArgs->fdAttached );
+
     }
     close(fd);
 
@@ -559,6 +567,79 @@ void manageDownload(char ** input, int wordCount, DownloadList *list){
     free(song);
 }
 
+void manageDownloadPlaylist(char ** input, int wordCount, DownloadList *list){
+
+    char * playlistName = concatenateWords2(input, wordCount);
+   
+    
+
+    sendDownloadPlaylist(pooleSocketFd,  playlistName);
+    int result = readFrame(pooleSocketFd, &frame);
+    printFrame(&frame);
+
+    if (result <= 0) {
+        printString("\nERROR: OK not receieved\n");
+        ctrl_C_function();
+    }else if(strcmp(frame.header, "PLAYLIST_NOT_FOUND") == 0){
+        printString("\nERROR: File doesn't exists in the server\n");
+        printFrame(&frame);
+        
+        
+    }else if(strcmp(frame.header, "PLAYLIST_FOUND") != 0){
+        printString("\nERROR: not what we were expecting\n");
+        printFrame(&frame);
+        ctrl_C_function();
+        
+    }else{
+        printStringWithHeader("Download started:", playlistName);
+        
+
+        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+
+        printInt("numberOfSongsToDownload:", atoi(separatedData[0]));
+
+        int numberOfSongsToDownload = atoi(separatedData[0]);
+
+        for(int we = 0; we < numberOfSongsToDownload; we++ ){
+            readFrame(pooleSocketFd, &frame);
+            printFrame(&frame);
+
+            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+
+            pthread_t thread;
+            FileArgs *args = malloc(sizeof(FileArgs));
+
+            char *miniBuffer;
+
+            asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
+
+            printStringWithHeader("\nFilenameeee:", miniBuffer);
+
+            args->fdAttached = pooleSocketFd;
+            args->maxSize = atoi(separatedData[1]);
+            args->pathOfTheFile = strdup(miniBuffer);
+            args->md5 = strdup(separatedData[2]);
+            args->name = strdup(separatedData[0]);
+            args->list = list;
+
+            addDownload(list, args);
+
+            if (pthread_create(&thread, NULL, downloadThread, args) != 0) {
+                perror("Failed to create download thread");
+                free(args);
+                ctrl_C_function();
+            }
+            free(miniBuffer);
+
+            pthread_detach(thread);
+        }
+
+
+        
+    }
+    
+}
+
 void manageCheckDownloads( DownloadList *list){
    
     printDownloadProgress(list);
@@ -640,9 +721,9 @@ void menu() {
             } else {
                 printString("Cannot List Playlist, you are not connected to HAL 9000\n");
             }
-        } else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) {
+        } else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0 && strcasecmp(input[1], "PLAYLIST") == 0) {
             if (connected) {
-                manageDownload(input, numberOfWords, &downloadList);
+                manageDownloadPlaylist(input, numberOfWords, &downloadList);
             } else {
                 printString("Cannot download, you are not connected to HAL 9000\n");
             }
@@ -651,6 +732,12 @@ void menu() {
                 manageCheckDownloads(&downloadList);
             } else {
                 printString("Cannot Check Downloads, you are not connected to HAL 9000\n");
+            }
+        }else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) {
+            if (connected) {
+                manageDownload(input, numberOfWords, &downloadList);
+            } else {
+                printString("Cannot download, you are not connected to HAL 9000\n");
             }
         } else {
             printString("ERROR: Please input a valid command.\n");
