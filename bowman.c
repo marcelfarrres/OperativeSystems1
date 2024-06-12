@@ -279,7 +279,7 @@ void ctrl_C_function(){
     free(frame.header);
     freeSeparatedData(&separatedData, &numberOfData);
 
-    freeDownloadList(&downloadList);
+    freeDownloadList(&list);
     
     
 
@@ -314,7 +314,7 @@ void addDownload( DownloadList *list, Download *args) {
 
 void *downloadThread(void *arg) {
     FileArgs *fileArgs = (FileArgs *)arg;
-    DownloadList *list = fileArgs->list; 
+    
 
     Frame frameT;
     initFrame(&frameT);
@@ -343,7 +343,7 @@ void *downloadThread(void *arg) {
             NumBytesWritten += dataLength;
         }
 
-        updateDownloadSize(list, fileArgs->name, NumBytesWritten);
+        updateDownloadSize(&list, fileArgs->name, NumBytesWritten);
        // printDownloadProgress(list);
     }
     
@@ -361,7 +361,7 @@ void *downloadThread(void *arg) {
     }
     close(fd);
 
-    deactivateDownload(list, fileArgs->name);
+    deactivateDownload(&list, fileArgs->name);
 
     if (frameT.data) free(frameT.data);
     if (frameT.header) free(frameT.header);
@@ -543,7 +543,7 @@ void manageListPlaylists(){
     }
 }
 
-void manageDownload(char ** input, int wordCount, DownloadList *list){
+void manageDownload(char ** input, int wordCount){
 
     char * song = concatenateWords(input, wordCount);
     //char * song2 = "example.txt";
@@ -572,7 +572,7 @@ void manageDownload(char ** input, int wordCount, DownloadList *list){
 
 
         pthread_t thread;
-        FileArgs *args = malloc(sizeof(FileArgs));
+        Download *args = malloc(sizeof(Download));
 
         char *miniBuffer;
 
@@ -585,9 +585,9 @@ void manageDownload(char ** input, int wordCount, DownloadList *list){
         args->pathOfTheFile = strdup(miniBuffer);
         args->md5 = strdup(separatedData[2]);
         args->name = strdup(separatedData[0]);
-        args->list = list;
+        
 
-        addDownload(list, args);
+        addDownload(&list, args);
 
         if (pthread_create(&thread, NULL, downloadThread, args) != 0) {
             perror("Failed to create download thread");
@@ -616,9 +616,6 @@ void *downloadPlaylistThread(void *arg) {
     
     int numNewFilesReceived = 0;
     
-    
-
-
     while(finishedDownloads < numberOfSongsToDownload){
             readFrameBinary(pooleSocketFd, &frameD);
             //printFrame(&frameD);
@@ -626,8 +623,9 @@ void *downloadPlaylistThread(void *arg) {
 
             if(strcmp(frameD.header, "NEW_FILE") == 0){
                 char *miniBuffer;
-                printStringWithHeader("\nNEW Filenameeee:", miniBuffer);
+                
                 asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
+                printStringWithHeader("\nNEW Filenameeee:", miniBuffer);
 
                 downloads[numNewFilesReceived].pathOfTheFile = strdup(miniBuffer);
                 downloads[numNewFilesReceived].fdAttached = pooleSocketFd;
@@ -738,46 +736,6 @@ void manageDownloadPlaylist(char ** input, int wordCount){
         pthread_detach(thread);
 
         
-//------------BORRAR
-/*
-        for(int we = 0; we < numberOfSongsToDownload; we++ ){
-            readFrame(pooleSocketFd, &frame);
-            printFrame(&frame);
-
-            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-
-            pthread_t thread;
-            FileArgs *args = malloc(sizeof(FileArgs));
-
-            char *miniBuffer;
-
-            asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
-
-            printStringWithHeader("\nFilenameeee:", miniBuffer);
-
-            args->fdAttached = pooleSocketFd;
-            args->maxSize = atoi(separatedData[1]);
-            args->pathOfTheFile = strdup(miniBuffer);
-            args->md5 = strdup(separatedData[2]);
-            args->name = strdup(separatedData[0]);
-            args->id = atoi(separatedData[3]);
-            args->list = list;
-
-            addDownload(list, args);
-
-            if (pthread_create(&thread, NULL, downloadThread, args) != 0) {
-                perror("Failed to create download thread");
-                free(args);
-                ctrl_C_function();
-            }
-            free(miniBuffer);
-
-            pthread_detach(thread);
-        }
-        */
-
-
-        
     }
     
 }
@@ -796,7 +754,7 @@ void menu() {
     int numberOfSpaces = 0;
 
     
-    initDownloadList(&downloadList);
+    initDownloadList(&list);
     
     
     
@@ -877,7 +835,7 @@ void menu() {
             }
         }else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) {
             if (connected) {
-                manageDownload(input, numberOfWords, &list);
+                manageDownload(input, numberOfWords);
             } else {
                 printString("Cannot download, you are not connected to HAL 9000\n");
             }

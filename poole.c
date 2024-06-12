@@ -122,13 +122,20 @@ char *createFrameBinary(uint8_t type, char *header, char *data, int dataLength, 
     *(uint32_t *)(frame + 3 + lengthHeader) = htonl(id);  // Convert ID to network byte order
     memcpy(frame + 7 + lengthHeader, data, dataLength);   // Adjust for ID size
 
+    int pad = 256 - totalLength;
+
+    frame[totalLength] = '\0'; 
+    memset(&frame[totalLength], 0, pad); 
+
     return frame;
 }
 
 
 void sendFileDataBinary(int socketFd, char *fileData, int fileDataLength, int id) {
+    
     char *frameToSend = createFrameBinary(0x04, "FILE_DATA", fileData, fileDataLength, id);
     if (frameToSend != NULL) {
+       
         write(socketFd, frameToSend, BINARY_FRAME_SIZE); 
         free(frameToSend);
     }
@@ -168,8 +175,11 @@ void* downloadThread(void* args){
 
     printInt("WAITING FOR CONFIRMATION:", sendThread->fd);
     //readFrame(sendThread->fd, &frame2);
-    sendEndFileDataBinary(sendThread->fd, sendThread->id);
-    printFrame(&frame2);
+    //sendEndFileDataBinary(sendThread->fd, sendThread->id);
+
+    printInt("All file sent:", sendThread->id);
+
+    //printFrame(&frame2);
 /*
 
     if (strcmp(frame2.header, "CHECK_OK") == 0){
@@ -221,6 +231,8 @@ void sendSongToBowman(int socketToSendSong, char * songName, int idSending){
     } else {
         pthread_detach(thread);  // Detach thread if successful
     }
+
+    free(songName);
 
     free(songPath);  // Freeing songPath after all its uses
 }
