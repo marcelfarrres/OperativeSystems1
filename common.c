@@ -82,41 +82,51 @@ char *concatenateWords2(char **words, int wordCount) {
     return result;
 }
 
-int calculateMD5Checksum(const char *file_path, char *md5sum) {
-    int pipefd[2];
-    pid_t pid;
-    char buf[33];
+int calculateMD5Checksum(const char *filePath, char *md5Checksum) {
+    int pipeFileDescriptors[2];
+    pid_t childPID;
+    char buffer[33];
 
-    if (pipe(pipefd) == -1) {
-        perror("pipe");
+    // Create a pipe
+    if (pipe(pipeFileDescriptors) == -1) {
+        perror("Failed to create pipe");
         return -1;
     }
 
-    pid = fork();
-    if (pid == -1) {
-        perror("fork");
+    // Fork a process
+    childPID = fork();
+    if (childPID == -1) {
+        perror("Failed to fork process");
         return -1;
     }
 
-    if (pid == 0) { // Child process
-        close(pipefd[0]); // Close unused read end
-        dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to pipe write end
-        close(pipefd[1]); // Close the original write end of the pipe
+    if (childPID == 0) { // Child process
+        close(pipeFileDescriptors[0]); // Close the read end of the pipe
+        if (dup2(pipeFileDescriptors[1], STDOUT_FILENO) == -1) {
+            perror("Failed to redirect STDOUT");
+            exit(EXIT_FAILURE);
+        }
+        close(pipeFileDescriptors[1]); // Close the write end of the pipe
 
-        execlp("md5sum", "md5sum", file_path, (char *)NULL);
-        perror("execlp"); // execlp() only returns on error
+        execlp("md5sum", "md5sum", filePath, NULL);
+        perror("Failed to execute md5sum");
         exit(EXIT_FAILURE);
     } else { // Parent process
-        close(pipefd[1]); // Close unused write end
+        close(pipeFileDescriptors[1]); // Close the write end of the pipe
 
-        // Read from pipe, get only the MD5 checksum part
-        if (read(pipefd[0], buf, 32) > 0) {
-            buf[32] = '\0'; // Null-terminate the string
-            strcpy(md5sum, buf);
+        int bytesRead = read(pipeFileDescriptors[0], buffer, 32);
+        if (bytesRead > 0) {
+            buffer[bytesRead] = '\0'; // Ensure the buffer is null-terminated
+            strncpy(md5Checksum, buffer, 32);
+            md5Checksum[32] = '\0'; // Null-terminate the MD5 checksum
+        } else {
+            perror("Failed to read data from pipe");
+            close(pipeFileDescriptors[0]);
+            waitpid(childPID, NULL, 0);
+            return -1;
         }
-        close(pipefd[0]); // Close read end
-
-        waitpid(pid, NULL, 0); // Wait for child process to finish
+        close(pipeFileDescriptors[0]); // Close the read end of the pipe
+        waitpid(childPID, NULL, 0); // Wait for the child process to exit
     }
 
     return 0;
@@ -451,6 +461,8 @@ void initFrame(Frame *frame) {
 
     frame->type = 0;
     frame->headerLength = 0;
+    frame->dataLength = 0;
+
     frame->id = 0;  // Set the integer ID to 0
 
     frame->header = NULL;

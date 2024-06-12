@@ -101,13 +101,16 @@ int readFrameBinary(int socketFd, Frame *frame) {
 
     // Check if enough bytes were received to read the ID, if applicable
     if (strcmp(frame->header, "FILE_DATA") == 0 || strcmp(frame->header, "END") == 0) {
-        if (numBytes < 3 + frame->headerLength + 4) { // Not enough data to include ID
+        if (numBytes < 3 + frame->headerLength + 4 + 4) { // Not enough data to include ID
             freeFrame(frame);
+            printString("\nError code for insufficient data\n");
             return -1; // Error code for insufficient data
         }
         frame->id = ntohl(*(uint32_t *)(buffer + 3 + frame->headerLength));
+        frame->dataLength = ntohl(*(uint32_t *)(buffer + 7 + frame->headerLength));
 
-        int dataStart = 3 + frame->headerLength + 4;
+
+        int dataStart = 3 + frame->headerLength + 4 + 4;
         int dataLength = numBytes - dataStart;
         frame->data = (char *)malloc(dataLength);
         if (!frame->data) {
@@ -664,8 +667,8 @@ void *downloadPlaylistThread(void *arg) {
                     if((int)frameD.id == downloads[er].id){
                         if (NumBytesWritten[er] < downloads[er].maxSize) {
                             if (frameD.data != NULL) {
-                               // printf("Data pointer: %p, Data content: %02x\n", frameT.data, *frameT.data);
-                                write(fileDescriptors[er], frameD.data, BINARY_SENDING_SIZE);
+                                //printInt("datalength:", (int)frameD.dataLength);
+                                write(fileDescriptors[er], frameD.data, (int)frameD.dataLength);
                                 NumBytesWritten[er] += BINARY_SENDING_SIZE;
                             }
                             updateDownloadSize(&list, downloads[er].name, NumBytesWritten[er]);

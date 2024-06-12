@@ -101,14 +101,14 @@ void socketDisconnectedPoole(int socket_){
 
 char *createFrameBinary(uint8_t type, char *header, char *data, int dataLength, uint32_t id) {
     int lengthHeader = strlen(header);
-    int totalLength = 3 + lengthHeader + 4 + dataLength;  // Additional 4 bytes for the integer ID
+    int totalLength = 3 + lengthHeader + 4 + 4 + dataLength; 
 
     if (totalLength > BINARY_FRAME_SIZE) {
         printString("\nERROR: FRAME TOO LARGE\n");
         return NULL;
     }
 
-    char *frame = (char *)malloc(256); 
+    char *frame = (char *)malloc(256);
     if (!frame) {
         printString("\nERROR: MEMORY ALLOCATION FAILED\n");
         return NULL;
@@ -119,13 +119,12 @@ char *createFrameBinary(uint8_t type, char *header, char *data, int dataLength, 
     frame[2] = (lengthHeader >> 8) & 0xFF;
 
     memcpy(frame + 3, header, lengthHeader);
-    *(uint32_t *)(frame + 3 + lengthHeader) = htonl(id);  // Convert ID to network byte order
-    memcpy(frame + 7 + lengthHeader, data, dataLength);   // Adjust for ID size
+    *(uint32_t *)(frame + 3 + lengthHeader) = htonl(id);
+    *(uint32_t *)(frame + 7 + lengthHeader) = htonl(dataLength); 
+    memcpy(frame + 11 + lengthHeader, data, dataLength);
 
     int pad = 256 - totalLength;
-
-    frame[totalLength] = '\0'; 
-    memset(&frame[totalLength], 0, pad); 
+    memset(&frame[totalLength], 0, pad);  
 
     return frame;
 }
@@ -188,47 +187,47 @@ void* downloadThread(void* args){
 
 void sendSongToBowman(int socketToSendSong, char * songName, int idSending){
     char * songPath = NULL;
-    asprintf(&songPath, "%s/%s", poole.folder, songName);  // Memory allocated here
+    asprintf(&songPath, "%s/%s", poole.folder, songName);  
 
     int fd = -1;
     openFile(songPath, &fd);
     int songSize = (int) lseek(fd, 0, SEEK_END);
 
-    char* md5sum = malloc(33 * sizeof(char));  // Hardcoded value used directly
+    char* md5sum = malloc(33 * sizeof(char));  
     printStringWithHeader("CHECKSUM FOR FILE:", songPath);
 
     calculateMD5Checksum(songPath, md5sum);
     printStringWithHeader("CHECKSUM CALCULATED:", md5sum);
-    //char* md5sum = "malloc(33 * sizeof(char))";  // Hardcoded value used directly
+   
 
 
     
     char *miniBuffer;
-    asprintf(&miniBuffer, "%s&%d&%s&%d", songName, songSize, md5sum, idSending);  // Memory allocated here
+    asprintf(&miniBuffer, "%s&%d&%s&%d", songName, songSize, md5sum, idSending); 
     sendFileInfo(socketToSendSong, miniBuffer);
-    free(miniBuffer);  // Freeing memory after use
+    free(miniBuffer);  
     free(md5sum);
 
     pthread_t thread;
-    SendThread *args = malloc(sizeof(SendThread));  // Memory allocated here
+    SendThread *args = malloc(sizeof(SendThread)); 
 
     args->fd = socketToSendSong;
-    args->filePath = strdup(songPath);  // Copy string safely
+    args->filePath = strdup(songPath); 
     args->id = idSending;
     args->songSize = songSize;
 
     if (pthread_create(&thread, NULL, downloadThread, args) != 0){
         printString("\nError creating download thread\n");
-        free(args->filePath);  // Free filePath on error
-        free(args);  // Free args structure on error
+        free(args->filePath);  
+        free(args); 
         ctrl_C_function();
     } else {
-        pthread_detach(thread);  // Detach thread if successful
+        pthread_detach(thread);  
     }
 
     free(songName);
 
-    free(songPath);  // Freeing songPath after all its uses
+    free(songPath);  
 }
 
 //-----------------------------------------------------------------

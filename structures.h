@@ -39,6 +39,7 @@ typedef struct {
     char *header;
     uint32_t id;  
     char *data;
+    uint32_t dataLength;
 } Frame;
 
 typedef struct{
