@@ -77,50 +77,56 @@ void removeAmp(char *buffer,  int *Amp) {
     buffer[length - (*Amp)] = '\0';
     (*Amp)++;
 }
-
 int readFrameBinary(int socketFd, Frame *frame) {
-   freeFrame(frame);
+    freeFrame(frame);
     initFrame(frame);
 
     char buffer[256];
-    int numBytes = read(socketFd, buffer, 256);
+    int numBytes = read(socketFd, buffer, sizeof(buffer));
     if (numBytes <= 0) {
-        return numBytes;
+        return numBytes; // Return if error or no data was read
+    }
+
+    if (numBytes < 3) { // Not enough bytes to read header information
+        return -1; // Error code for insufficient data
     }
 
     frame->type = buffer[0];
     frame->headerLength = (buffer[2] << 8) | buffer[1];
-    frame->header = (char *)malloc(((frame->headerLength) + 1) * sizeof(char));
+    frame->header = (char *)malloc(frame->headerLength + 1);
+    if (!frame->header) return -1; // Memory allocation failure
     memcpy(frame->header, buffer + 3, frame->headerLength);
-	(frame->header)[((frame->headerLength))] = '\0';
+    frame->header[frame->headerLength] = '\0';
 
-    if(strcmp(frame->header,"FILE_DATA") == 0 || strcmp(frame->header,"END") == 0){
-        // Read the integer ID
-        if (numBytes >= 3 + frame->headerLength + 4) { // Ensure there are enough bytes for the ID
-            frame->id = ntohl(*(uint32_t *)(buffer + 3 + frame->headerLength)); // Convert from network byte order
-        } else {
-            return -1;  // Not enough data received
+    // Check if enough bytes were received to read the ID, if applicable
+    if (strcmp(frame->header, "FILE_DATA") == 0 || strcmp(frame->header, "END") == 0) {
+        if (numBytes < 3 + frame->headerLength + 4) { // Not enough data to include ID
+            freeFrame(frame);
+            return -1; // Error code for insufficient data
         }
-        // Read the data
+        frame->id = ntohl(*(uint32_t *)(buffer + 3 + frame->headerLength));
+
         int dataStart = 3 + frame->headerLength + 4;
         int dataLength = numBytes - dataStart;
         frame->data = (char *)malloc(dataLength);
+        if (!frame->data) {
+            freeFrame(frame);
+            return -1; // Memory allocation failure
+        }
         memcpy(frame->data, buffer + dataStart, dataLength);
-
-        return BINARY_SENDING_SIZE;
-
-    }else{
-
-        int dataLength = numBytes - (3 + frame->headerLength); 
-   
-        frame->data = (char *)malloc(dataLength * sizeof(char));
-        memcpy(frame->data, buffer + 3 + frame->headerLength, dataLength);
-        (frame->data)[dataLength - 1] = '\0'; 
-
+        return dataLength;
+    } else {
+        int dataStart = 3 + frame->headerLength;
+        int dataLength = numBytes - dataStart;
+        frame->data = (char *)malloc(dataLength);
+        if (!frame->data) {
+            freeFrame(frame);
+            return -1; // Memory allocation failure
+        }
+        memcpy(frame->data, buffer + dataStart, dataLength);
+        frame->data[dataLength - 1] = '\0'; // Assure string termination
         return dataLength;
     }
-
-    
 }
 
 //DOWNLOADS-----------------------------------------------------------------------------------
@@ -193,6 +199,31 @@ void freeDownloadArgs(FileArgs *args) {
     }
 }
 
+void freeDownloadArray( int numDownloads) {
+    if (downloads == NULL) {
+        return; // If the passed array is NULL, there is nothing to do.
+    }
+    printInt("numDownloads:", numDownloads);
+    // Iterate over each Download struct in the array
+    for (int i = 0; i < numDownloads; i++) {
+        printStringWithHeader("downloads[i].name:", downloads[i].name);
+        printStringWithHeader("downloads[i].pathOfTheFile:", downloads[i].pathOfTheFile);
+        printStringWithHeader("downloads[i].md5:", downloads[i].md5);
+
+
+        free(downloads[i].name);         // Free the name string, if allocated
+        free(downloads[i].pathOfTheFile); // Free the path of the file string, if allocated
+        free(downloads[i].md5);           // Free the md5 string, if allocated
+
+        // Set pointers to NULL to avoid use-after-free errors
+        downloads[i].name = NULL;
+        downloads[i].pathOfTheFile = NULL;
+        downloads[i].md5 = NULL;
+    }
+
+    // Finally, free the array itself
+    free(downloads);
+}
 
 void printDownloadProgress(const DownloadList *list) {
     if (list == NULL || list->elements == NULL) {
@@ -350,6 +381,7 @@ void *downloadThread(void *arg) {
         updateDownloadSize(&list, fileArgs->name, NumBytesWritten);
        // printDownloadProgress(list);
     }
+    readFrameBinary(fileArgs->fdAttached, &frameT);
     
 
     char *md5sum = "qwertyuiopasdfghjklzxcvbnmqwertyu"; // This would be replaced by a real MD5 checksum computation
@@ -627,10 +659,11 @@ void *downloadPlaylistThread(void *arg) {
     while(finishedDownloads < numberOfSongsToDownload){
             readFrameBinary(pooleSocketFd, &frameD);
             //printFrame(&frameD);
-            numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
+            
 
             if(strcmp(frameD.header, "NEW_FILE") == 0){
                 char *miniBuffer;
+                numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
                 
                 asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
                 printStringWithHeader("\nNEW Filenameeee:", miniBuffer);
@@ -642,7 +675,7 @@ void *downloadPlaylistThread(void *arg) {
                 downloads[numNewFilesReceived].md5 = strdup(separatedData[2]);
                 downloads[numNewFilesReceived].name = strdup(separatedData[0]);
 
-                fileDescriptors[numNewFilesReceived] = open( strdup(miniBuffer), O_WRONLY | O_TRUNC | O_CREAT, 0666);
+                fileDescriptors[numNewFilesReceived] = open( miniBuffer, O_WRONLY | O_TRUNC | O_CREAT, 0666);
                 if (fileDescriptors[numNewFilesReceived] == -1) {
                     perror("Error opening file");
                     ctrl_C_function();
@@ -679,7 +712,12 @@ void *downloadPlaylistThread(void *arg) {
 
 
     }
+    //free
+    freeSeparatedData(&separatedData, &numberOfData);
 
+    freeFrame(&frameD);
+
+    freeDownloadArray(finishedDownloads);
 
     downloadThreadAlreadyCreated = 0;
 
@@ -714,6 +752,8 @@ void manageDownloadPlaylist(char ** input, int wordCount){
         
     }else{
         printStringWithHeader("Download started:", playlistName);
+
+        free(playlistName);
         
 
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);

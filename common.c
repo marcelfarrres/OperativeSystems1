@@ -427,6 +427,7 @@ void freeFrame(Frame *frame) {
 
     free(frame->data);    // Free the memory for the data
     frame->data = NULL;
+    
 
     // No need to free 'id' since it's an integer and not dynamically allocated
 }
