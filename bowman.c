@@ -372,7 +372,7 @@ void addDownload( DownloadList *list, Download *args) {
 
 
 
-void *downloadThread(void *arg) {
+void *uploadThread(void *arg) {
     FileArgs *fileArgs = (FileArgs *)arg;
     
 

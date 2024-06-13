@@ -168,7 +168,7 @@ void sendEndFileDataBinary(int socketFd, int id) {
     }
 }
 
-void* downloadThread(void* args){
+void* uploadThread(void* args){
     SendThread *sendThread = (SendThread *) args;
     Frame frame2; 
     initFrame(&frame2);
@@ -223,10 +223,16 @@ void sendSongToBowman(int socketToSendSong, char * songName, int idSending){
 
     
     char *miniBuffer;
+    char *entryStats;
     asprintf(&miniBuffer, "%s&%d&%s&%d", songName, songSize, md5sum, idSending); 
+    asprintf(&entryStats, "%s&%s&%d", poole.name, songName, songSize); 
+
     sendFileInfo(socketToSendSong, miniBuffer);
+    sendStatToMonolith(pipefd[1], entryStats);
     free(miniBuffer);  
     free(md5sum);
+    free(entryStats);
+    
 
     pthread_t thread;
     SendThread *args = malloc(sizeof(SendThread)); 
@@ -236,7 +242,7 @@ void sendSongToBowman(int socketToSendSong, char * songName, int idSending){
     args->id = idSending;
     args->songSize = songSize;
 
-    if (pthread_create(&thread, NULL, downloadThread, args) != 0){
+    if (pthread_create(&thread, NULL, uploadThread, args) != 0){
         printString("\nError creating download thread\n");
         free(args->filePath);  
         free(args); 
@@ -368,7 +374,7 @@ void mainPooleProcess( char *argv[]){
                             char *miniBuffer2;
                             int *numberOfSongsPerFrame;
 
-                            sendStatToMonolith(pipefd[1],"HEY&HOY");
+                            
 
 
                             if (readSongsFromFolder(poole.folder, &songsToSend, &numberOfSongs, &numberOfFrames, &numberOfSongsPerFrame) == 1) {
@@ -389,6 +395,7 @@ void mainPooleProcess( char *argv[]){
                                         asprintf(&miniBuffer, "%s", miniBuffer2);
                                         free(miniBuffer2);
                                     }
+                                   
                                     sendSongsResponse(i, miniBuffer);
                                     
                                     free(miniBuffer);
@@ -588,10 +595,7 @@ int main(int argc, char *argv[]) {
         initFrame(&newFrame);
 
         while (readFrame(pipefd[0], &newFrame) > 0) {
-            
-            
-            printStringWithHeader("Child received:", newFrame.data);
-           
+            //printStringWithHeader("Child received:", newFrame.data);
 
             if(strcmp(newFrame.header, "STAT") == 0){
                 numberOfData = separateData(newFrame.data, &separatedData, &numberOfData);
@@ -608,11 +612,16 @@ int main(int argc, char *argv[]) {
                     close(fd);
                     continue;
                 }
+                
+                //prepare the entry:
+                char * entryToStats = NULL;
+                asprintf(&entryToStats, "Poole: %s \n\tSong Name: %s\n\tSize: %.2f Mbs\n\n", separatedData[0], separatedData[1], atof(separatedData[2]) / 1000000.0); 
 
                 // Write to the file
-                if (write(fd, separatedData[0], strlen(separatedData[0])) == -1) {
+                if (write(fd, entryToStats, strlen(entryToStats)) == -1) {
                     perror("write");
                 }
+                free(entryToStats);
                 freeSeparatedData(&separatedData, &numberOfData);
 
                 // Unlock and close the file
@@ -638,7 +647,7 @@ int main(int argc, char *argv[]) {
         signal(SIGINT, ctrl_C_function);
         mainPooleProcess(argv);
 
-        wait(NULL); // Wait for child to finish
+       
     }
 
    
