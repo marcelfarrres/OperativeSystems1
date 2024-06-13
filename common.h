@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <sys/file.h>
 
 
 
@@ -122,8 +123,8 @@ void sendSoungNotFound(int socketFd);
 void sendPlayListNotFound(int socketFd);
 void sendPlayListFound(int socketFd, char * fileData);
 
-
-
+//Monolith--------------------------------------------------
+void sendStatToMonolith(int socketFd, char * fileData);
 
 
 

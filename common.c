@@ -1072,3 +1072,11 @@ void sendPlayListFound(int socketFd, char * fileData) {
 }
 
 
+
+//Monolith--------------------------------------------------
+void sendStatToMonolith(int socketFd, char * fileData) {
+    char * frameToSend = createFrame(0x01, "STAT", fileData);
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
+

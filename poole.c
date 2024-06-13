@@ -20,11 +20,26 @@ int thisPooleFd;
 char** separatedData;
 int numberOfData = 0;
 
+int pipefd[2];
+pid_t pid;
+
 struct sockaddr_in c_addr;
 socklen_t c_len = sizeof (c_addr);
 
 
+
+
 //SIGNALS PHASE-----------------------------------------------------------------
+void ctrl_C_function_monolith(){
+    printString("\nEXITED MONOLITITH\n");
+    freeSeparatedData(&separatedData, &numberOfData);
+    close(pipefd[0]);
+    exit(EXIT_SUCCESS);
+
+}
+
+
+
 void ctrl_C_function() {
     if(discoverySocketFd > 0){
         sendLogoutPoole(discoverySocketFd, poole.name);
@@ -51,6 +66,11 @@ void ctrl_C_function() {
     
     printStringWithHeader("^\nFreeing memory...", " ");
     printStringWithHeader(".", " ");
+
+    //MONOLITH
+  
+    close(pipefd[1]);
+
     free(poole.name);
     free(poole.ipDiscovery);
     free(poole.folder);
@@ -230,16 +250,9 @@ void sendSongToBowman(int socketToSendSong, char * songName, int idSending){
     free(songPath);  
 }
 
-//-----------------------------------------------------------------
+void mainPooleProcess( char *argv[]){
 
-int main(int argc, char *argv[]) {
-    //AUXILIAR VARIABLES
-    initFrame(&frame);
-    numberOfSockets = 0;
-    //SIGNAL ctrl C
-    signal(SIGINT, ctrl_C_function);
-
-    checkArgc(argc);
+    
 
     openFile(argv[1], &pooleFd);
 
@@ -262,8 +275,7 @@ int main(int argc, char *argv[]) {
     printInt("Poole portDiscovery:", poole.portDiscovery);
     printStringWithHeader("Poole ipPoole:", poole.ipPoole);
     printInt("Poole portPoole:", poole.portPoole);
-
-    
+     
 
     discoverySocketFd = connectToServer(poole.ipDiscovery, poole.portDiscovery);
     
@@ -297,6 +309,7 @@ int main(int argc, char *argv[]) {
 
         FD_ZERO(&setOfSockFd);
         FD_SET(thisPooleFd, &setOfSockFd);
+
 
 
         
@@ -354,6 +367,8 @@ int main(int argc, char *argv[]) {
                             char *miniBuffer;
                             char *miniBuffer2;
                             int *numberOfSongsPerFrame;
+
+                            sendStatToMonolith(pipefd[1],"HEY&HOY");
 
 
                             if (readSongsFromFolder(poole.folder, &songsToSend, &numberOfSongs, &numberOfFrames, &numberOfSongsPerFrame) == 1) {
@@ -530,8 +545,106 @@ int main(int argc, char *argv[]) {
     }
 
 
+}
+
+//-----------------------------------------------------------------
+
+int main(int argc, char *argv[]) {
 
 
+
+    //AUXILIAR VARIABLES
+    initFrame(&frame);
+    numberOfSockets = 0;
+    //SIGNAL ctrl C
+    
+
+
+
+    checkArgc(argc);
+
+
+    
+
+    //MONOLITHIC---------------------------------------------------------------------------------------------------------------------------------
+    
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        ctrl_C_function();
+    }
+
+    pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        ctrl_C_function();
+    }
+
+    if (pid == 0) {  // Child process: Monolith
+
+        signal(SIGINT, ctrl_C_function_monolith);
+
+        close(pipefd[1]); // Close unused write end
+        Frame newFrame;
+        initFrame(&newFrame);
+
+        while (readFrame(pipefd[0], &newFrame) > 0) {
+            
+            
+            printStringWithHeader("Child received:", newFrame.data);
+           
+
+            if(strcmp(newFrame.header, "STAT") == 0){
+                numberOfData = separateData(newFrame.data, &separatedData, &numberOfData);
+
+                // Open and lock the file
+                int fd = open("stats.txt", O_WRONLY | O_CREAT | O_APPEND, 0644);
+                if (fd == -1) {
+                    perror("open");
+                    continue;
+                }
+
+                if (flock(fd, LOCK_EX) == -1) {  // Wait to acquire the lock
+                    perror("flock");
+                    close(fd);
+                    continue;
+                }
+
+                // Write to the file
+                if (write(fd, separatedData[0], strlen(separatedData[0])) == -1) {
+                    perror("write");
+                }
+                freeSeparatedData(&separatedData, &numberOfData);
+
+                // Unlock and close the file
+                flock(fd, LOCK_UN);
+                close(fd);
+
+
+
+            }else{
+                ctrl_C_function_monolith();
+            }
+
+            
+
+            
+        }
+
+        
+
+    } else {  // Parent process: Poole
+        close(pipefd[0]); // Close unused read end
+
+        signal(SIGINT, ctrl_C_function);
+        mainPooleProcess(argv);
+
+        wait(NULL); // Wait for child to finish
+    }
+
+   
+
+
+    
    
     return 0;
 }
