@@ -1,14 +1,6 @@
 #include "common.h"
 #include "structures.h"
 
-typedef struct{
-    int id;
-    int fd;
-    char *filePath;
-    int songSize;
-} SendThread;
-
-
 Poole poole;
 int pooleFd = -1; //POOLE FILE
 int discoverySocketFd = -1;
@@ -37,8 +29,6 @@ void ctrl_C_function_monolith(){
     exit(EXIT_SUCCESS);
 
 }
-
-
 
 void ctrl_C_function() {
     if(discoverySocketFd > 0){

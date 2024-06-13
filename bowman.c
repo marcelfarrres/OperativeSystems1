@@ -1,43 +1,6 @@
 #include "common.h"
 #include "structures.h"
 
-
-
-
-
-typedef struct DownloadElement {
-    pthread_t thread_id;
-    char *name;
-    int maxSize;
-    int currentFileSize;
-    int active;
-} DownloadElement;
-
-typedef struct {
-    DownloadElement *elements;
-    int size;
-    int capacity;
-} DownloadList;
-
-typedef struct {
-    char *name;
-    int fdAttached;
-    int maxSize; 
-    char *pathOfTheFile;
-    char *md5;
-    int id;
-    DownloadList * list;
-} FileArgs;
-
-typedef struct {
-    char *name;
-    int fdAttached;
-    int maxSize; 
-    char *pathOfTheFile;
-    char *md5;
-    int id;
-} Download;
-
 Bowman bowman;
 int discoverySocketFd = -1;
 int pooleSocketFd = -1;
@@ -54,9 +17,7 @@ int numNewFilesReceived = 0;
 Download *downloads = NULL;
 int fileDescriptors[100];
 int NumBytesWritten[100];
-int downloadThreadAlreadyCreated = 0;
 int errorDownloads = 0;
-
 
 
 pthread_mutex_t download_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -78,6 +39,8 @@ void removeAmp(char *buffer,  int *Amp) {
     buffer[length - (*Amp)] = '\0';
     (*Amp)++;
 }
+
+
 int readFrameBinary(int socketFd, Frame *frame) {
     freeFrame(frame);
     initFrame(frame);
@@ -207,35 +170,18 @@ void deactivateDownload(DownloadList *list, const char *name) {
 }
 
 
-void freeDownloadArgs(FileArgs *args) {
-    if (args != NULL) {
-        if (args->pathOfTheFile != NULL) {
-            free(args->pathOfTheFile);
-            args->pathOfTheFile = NULL;  
-        }
-        if (args->md5 != NULL) {
-            free(args->md5);
-            args->md5 = NULL;
-        }
-        if (args->name != NULL) {
-            free(args->name);
-            args->name = NULL;
-        }
 
-        free(args);
-    }
-}
 
 void freeDownloadArray( int numDownloads) {
     if (downloads == NULL) {
         return; // If the passed array is NULL, there is nothing to do.
     }
-    printInt("numDownloads:", numDownloads);
+    //printInt("numDownloads:", numDownloads);
     // Iterate over each Download struct in the array
     for (int i = 0; i < numDownloads; i++) {
-        printStringWithHeader("downloads[i].name:", downloads[i].name);
-        printStringWithHeader("downloads[i].pathOfTheFile:", downloads[i].pathOfTheFile);
-        printStringWithHeader("downloads[i].md5:", downloads[i].md5);
+        //printStringWithHeader("downloads[i].name:", downloads[i].name);
+        //printStringWithHeader("downloads[i].pathOfTheFile:", downloads[i].pathOfTheFile);
+        //printStringWithHeader("downloads[i].md5:", downloads[i].md5);
 
 
         free(downloads[i].name);         // Free the name string, if allocated
@@ -278,6 +224,22 @@ void printDownloadProgress(const DownloadList *list) {
 
         
     }
+}
+
+
+void addDownload( DownloadList *list, Download *args) {
+    pthread_mutex_lock(&download_mutex);
+    if (list->size == list->capacity) {
+        int new_capacity = list->capacity == 0 ? 1 : list->capacity * 2;
+        list->elements = realloc(list->elements, new_capacity * sizeof(DownloadElement));
+        list->capacity = new_capacity;
+    }
+    DownloadElement *new_element = &list->elements[list->size++];
+    new_element->name = strdup(args->name);
+    new_element->maxSize = args->maxSize;
+    new_element->currentFileSize = 0;
+    new_element->active = 1;
+    pthread_mutex_unlock(&download_mutex);
 }
 
 
@@ -354,91 +316,9 @@ void ctrl_C_function(){
 //-----------------------------------------------------------------
 
 
-void addDownload( DownloadList *list, Download *args) {
-    pthread_mutex_lock(&download_mutex);
-    if (list->size == list->capacity) {
-        int new_capacity = list->capacity == 0 ? 1 : list->capacity * 2;
-        list->elements = realloc(list->elements, new_capacity * sizeof(DownloadElement));
-        list->capacity = new_capacity;
-    }
-    DownloadElement *new_element = &list->elements[list->size++];
-    new_element->name = strdup(args->name);
-    new_element->maxSize = args->maxSize;
-    new_element->currentFileSize = 0;
-    new_element->active = 1;
-    pthread_mutex_unlock(&download_mutex);
-}
 
 
-
-
-void *uploadThread(void *arg) {
-    FileArgs *fileArgs = (FileArgs *)arg;
-    
-
-    Frame frameT;
-    initFrame(&frameT);
-    
-    int fd = open(fileArgs->pathOfTheFile, O_WRONLY | O_TRUNC | O_CREAT, 0666);
-    if (fd == -1) {
-        perror("Error opening file");
-        ctrl_C_function();
-    }
-    
-    int NumBytesWritten = 0;
-    while (NumBytesWritten < fileArgs->maxSize) {
-        
-        freeFrame(&frameT);
-        initFrame(&frameT);
-        int dataLength = readFrameBinary(fileArgs->fdAttached, &frameT);
-        if (dataLength <= 0) {
-            printString("Error reading frame or no data left\n");
-            break;
-        }
-
-        if (frameT.data != NULL) {
-           // printf("Data pointer: %p, Data content: %02x\n", frameT.data, *frameT.data);
-
-            write(fd, frameT.data, dataLength);
-            NumBytesWritten += dataLength;
-        }
-
-        updateDownloadSize(&list, fileArgs->name, NumBytesWritten);
-       // printDownloadProgress(list);
-    }
-    readFrameBinary(fileArgs->fdAttached, &frameT);
-    readFrameBinary(fileArgs->fdAttached, &frameT);
-
-    
-
-    char* md5sum = malloc(33 * sizeof(char));  // Hardcoded value used directly
-    calculateMD5Checksum(fileArgs->pathOfTheFile, md5sum);
-    printStringWithHeader("CHECKSUM CALCULATED:", md5sum);
-    //char* md5sum = "malloc(33 * sizeof(char))";  // Hardcoded value used directly
-
-    printString("\nCheckUsm finished\n");
-    if (strcmp(md5sum, fileArgs->md5) != 0) {
-        sendCheckResult(fileArgs->fdAttached, 1);
-        
-    } else {
-        sendCheckResult(fileArgs->fdAttached, 1);
-        
-
-    }
-    free(md5sum);
-    close(fd);
-
-    deactivateDownload(&list, fileArgs->name);
-
-    if (frameT.data) free(frameT.data);
-    if (frameT.header) free(frameT.header);
-    
-    freeDownloadArgs(fileArgs);
-    return NULL;
-}
-
-
-//-----------------------------------------------------------------
+//MANAGE ALL USER INPUTS-----------------------------------------------------------------
 
 void manageLogOut(){
     printString("Closing Session..\n");
@@ -611,11 +491,11 @@ void manageListPlaylists(){
 }
 
 
-
+//THREAD for background downloading--------------------------------------------------------------------------------
 void *downloadPlaylistThread(void *arg) {
     (void)arg;
 
-    downloadThreadAlreadyCreated = 1;
+ 
 
     downloads = malloc(numberOfSongsToDownload * sizeof(Download));
 
@@ -642,7 +522,7 @@ void *downloadPlaylistThread(void *arg) {
                 numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
                 
                 asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
-                printStringWithHeader("\nNEW Filenameeee:", miniBuffer);
+                //printStringWithHeader("\nNEW Filenameeee:", miniBuffer);
 
                 downloads[numNewFilesReceived].pathOfTheFile = strdup(miniBuffer);
                 downloads[numNewFilesReceived].fdAttached = pooleSocketFd;
@@ -679,11 +559,23 @@ void *downloadPlaylistThread(void *arg) {
                 for(int er = 0; er < numNewFilesReceived; er++){
                     if((int)frameD.id == downloads[er].id){
 
-                        char* md5sum = malloc(33 * sizeof(char));  // Hardcoded value used directly
-                        printStringWithHeader("CHECKSUM FOR FILE:", downloads[er].pathOfTheFile);
+                        char* md5sum = malloc(33 * sizeof(char));  
+                        //printStringWithHeader("CHECKSUM FOR FILE:", downloads[er].pathOfTheFile);
 
                         calculateMD5Checksum(downloads[er].pathOfTheFile, md5sum);
-                        printStringWithHeader("CHECKSUM CALCULATED:", md5sum);
+                        //-----
+                        printStringWithHeader("\n[Server] Md5Checksum:", downloads[er].md5);
+                        printStringWithHeader("[Client] Md5Checksum:", md5sum);
+
+                        if (strcmp(md5sum, downloads[er].md5) == 0) {
+                            printStringWithHeader("\nMD5 Checkum VERIFIED, you can now play this song on your:", downloads[er].name );
+                        } else {
+                            printStringWithHeader("\nMD5 Checkum FAILED, This song may be corrupted:", downloads[er].name );
+                        }
+
+                        printString("\n\n$ ");
+                        
+                        //-----
                         free(md5sum);
 
                         deactivateDownload(&list, downloads[er].name);
@@ -709,8 +601,7 @@ void *downloadPlaylistThread(void *arg) {
     freeFrame(&frameD);
 
     freeDownloadArray(finishedDownloads - errorDownloads );
-
-    downloadThreadAlreadyCreated = 0;
+  
     numberOfSongsToDownload = 0;
 
     return NULL;
@@ -721,11 +612,9 @@ void *downloadPlaylistThread(void *arg) {
 
 void manageDownloadPlaylist(char ** input, int wordCount){
     
-    
 
     char * playlistName = concatenateWords2(input, wordCount);
    
-    
 
     sendDownloadPlaylist(pooleSocketFd,  playlistName);
     int result = readFrame(pooleSocketFd, &frame);
@@ -755,31 +644,20 @@ void manageDownloadPlaylist(char ** input, int wordCount){
 
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
 
-        printInt("numberOfSongsToDownload:", atoi(separatedData[0]));
-
         numberOfSongsToDownload = numberOfSongsToDownload + atoi(separatedData[0]);
         
         printInt("numberOfSongsToDownload:", numberOfSongsToDownload);
 
-        if(downloadThreadAlreadyCreated == 1){
-            printString("\nThread Already Created\n");
+        pthread_t thread;
 
-            
-        }else{
-            printString("\nThread Not Already Created\n");
-            pthread_t thread;
-
-            if (pthread_create(&thread, NULL, downloadPlaylistThread, NULL) != 0) {
-                perror("Failed to create download thread");
+        if (pthread_create(&thread, NULL, downloadPlaylistThread, NULL) != 0) {
+            perror("Failed to create download thread");
                 
-                ctrl_C_function();
-            }
-    
-            pthread_detach(thread);
-            
+            ctrl_C_function();
         }
-        
-
+    
+        pthread_detach(thread);
+   
         
     }
     
@@ -819,7 +697,7 @@ void menu() {
     int inputLength;
     int numberOfWords = 0;
     int numberOfSpaces = 0;
-    downloadThreadAlreadyCreated = 0;
+
 
     
     initDownloadList(&list);
@@ -833,8 +711,22 @@ void menu() {
         numberOfSpaces = 0;
         
         if(connected == 0){
+            
             printString("\n[not connected] $ ");
         }else{
+ 
+
+           printString(
+            "\n┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+              "┃ Commands Shortcuts:   \n"
+              "┃                          \n"
+              "┃  1) CONNECT            5) DOWNLOAD   \n"
+              "┃  2) LOGOUT             6 6) DOWNLOAD PLAYLIST (double 6) \n"
+              "┃  3) LIST SONGS         7) CHECK DOWNLOADS   \n"
+              "┃  4) LIST PLAYLISTS     8) CLEAR DOWNLOADS   \n"
+              "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+            );
+
             printString("\n$ ");
 
         }
@@ -861,7 +753,7 @@ void menu() {
             numberOfWords++;
         }
 
-        if (numberOfWords == 1 && strcasecmp(input[0], "CONNECT") == 0) {
+        if ((numberOfWords == 1 && strcasecmp(input[0], "CONNECT") == 0) || (numberOfWords == 1 && strcasecmp(input[0], "1") == 0)) {
             if (connected) {
                 printString("Floyd is already connected.\n");
             } else {
@@ -869,7 +761,7 @@ void menu() {
                 manageLogIn();
                 printString("Floyd connected to HAL 9000 system, welcome music lover!\n");
             }
-        } else if (numberOfWords == 1 && strcasecmp(input[0], "LOGOUT") == 0) {
+        } else if ((numberOfWords == 1 && strcasecmp(input[0], "LOGOUT") == 0) || (numberOfWords == 1 && strcasecmp(input[0], "2") == 0)) {
             if (connected) {
                 printString("Thanks for using HAL 9000, see you soon, music lover!\n");
                 connected = 0;
@@ -877,37 +769,37 @@ void menu() {
             } else {
                 printString("Cannot Logout, you are not connected to HAL 9000\n");
             }
-        } else if (numberOfWords == 2 && strcasecmp(input[0], "LIST") == 0 && strcasecmp(input[1], "SONGS") == 0) {
+        } else if ((numberOfWords == 2 && strcasecmp(input[0], "LIST") == 0 && strcasecmp(input[1], "SONGS") == 0) || (numberOfWords == 1 && strcasecmp(input[0], "3") == 0)) {
             if (connected) {
                 manageListSongs();
             } else {
                 printString("Cannot List Songs, you are not connected to HAL 9000\n");
             }
-        } else if (numberOfWords == 2 && strcasecmp(input[0], "LIST") == 0 && strcasecmp(input[1], "PLAYLISTS") == 0) {
+        } else if ((numberOfWords == 2 && strcasecmp(input[0], "LIST") == 0 && strcasecmp(input[1], "PLAYLISTS") == 0) || (numberOfWords == 1 && strcasecmp(input[0], "4") == 0)) {
             if (connected) {
                 manageListPlaylists();
             } else {
                 printString("Cannot List Playlist, you are not connected to HAL 9000\n");
             }
-        } else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0 && strcasecmp(input[1], "PLAYLIST") == 0) {
+        } else if ((numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0 && strcasecmp(input[1], "PLAYLIST") == 0) || (numberOfWords >= 1 && strcasecmp(input[0], "6") == 0 && strcasecmp(input[1], "6") == 0)) {
             if (connected) {
                 manageDownloadPlaylist(input, numberOfWords);
             } else {
                 printString("Cannot download playlist, you are not connected to HAL 9000\n");
             }
-        } else if (numberOfWords == 2 && strcasecmp(input[0], "CHECK") == 0 && strcasecmp(input[1], "DOWNLOADS") == 0) {
+        } else if ((numberOfWords == 2 && strcasecmp(input[0], "CHECK") == 0 && strcasecmp(input[1], "DOWNLOADS") == 0) || (numberOfWords == 1 && strcasecmp(input[0], "7") == 0)) {
             if (connected) {
                 manageCheckDownloads(&list);
             } else {
                 printString("Cannot Check Downloads, you are not connected to HAL 9000\n");
             }
-        }else if (numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) {
+        }else if ((numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) || (numberOfWords >= 1 && strcasecmp(input[0], "5") == 0)) {
             if (connected) {
                 manageDownload(input, numberOfWords);
             } else {
                 printString("Cannot download, you are not connected to HAL 9000\n");
             }
-        }else if (numberOfWords == 2 && strcasecmp(input[0], "CLEAR") == 0 && strcasecmp(input[1], "DOWNLOADS") == 0) {
+        }else if ((numberOfWords == 2 && strcasecmp(input[0], "CLEAR") == 0 && strcasecmp(input[1], "DOWNLOADS") == 0) || (numberOfWords == 1 && strcasecmp(input[0], "8") == 0 )) {
             if (connected) {
                 clearDownloads(&list);
             } else {

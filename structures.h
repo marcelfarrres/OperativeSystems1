@@ -48,9 +48,45 @@ typedef struct{
     char** songs;
 }Playlist; 
 
+typedef struct DownloadElement {
+    pthread_t thread_id;
+    char *name;
+    int maxSize;
+    int currentFileSize;
+    int active;
+} DownloadElement;
 
+typedef struct {
+    DownloadElement *elements;
+    int size;
+    int capacity;
+} DownloadList;
 
+typedef struct {
+    char *name;
+    int fdAttached;
+    int maxSize; 
+    char *pathOfTheFile;
+    char *md5;
+    int id;
+    DownloadList * list;
+} FileArgs;
 
+typedef struct {
+    char *name;
+    int fdAttached;
+    int maxSize; 
+    char *pathOfTheFile;
+    char *md5;
+    int id;
+} Download;
+
+typedef struct{
+    int id;
+    int fd;
+    char *filePath;
+    int songSize;
+} SendThread;
 
 
 #endif
