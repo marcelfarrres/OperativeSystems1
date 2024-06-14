@@ -953,7 +953,7 @@ void sendListSongs(int socketFd) {
 
 
 void sendSongsResponse(int socketFd,  char * songs) {
-    char * frameToSend = createFrame(0x02, "SONGS_RESPONSE", songs);
+    char * frameToSend = createFrame(0x02, "SONGS_RESPONSE_SONGS", songs);
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }
@@ -967,7 +967,7 @@ void sendListPlaylists(int socketFd) {
 
 
 void sendPlaylistsResponse(int socketFd,  char * playlists) {
-    char * frameToSend = createFrame(0x02, "SONGS_RESPONSE", playlists);
+    char * frameToSend = createFrame(0x02, "SONGS_RESPONSE_PLAYLISTS", playlists);
     write(socketFd, frameToSend, MAX_FRAME_SIZE);
     free(frameToSend);
 }

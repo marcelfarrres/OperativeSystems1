@@ -144,7 +144,7 @@ void sendFileDataBinary(int socketFd, char *fileData, int fileDataLength, int id
     
     char *frameToSend = createFrameBinary(0x04, "FILE_DATA", fileData, fileDataLength, id);
     if (frameToSend != NULL) {
-       // usleep(1000);
+        usleep(400);
        
         write(socketFd, frameToSend, BINARY_FRAME_SIZE); 
         free(frameToSend);

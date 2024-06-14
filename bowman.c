@@ -19,6 +19,25 @@ int fileDescriptors[100];
 int NumBytesWritten[100];
 int errorDownloads = 0;
 
+int songsResponseRunning = 0;
+int songsResponseRunningOnly = 0;
+int numberOfFramesListPlaylists = 0;
+int numberOfFramesListPlaylistsOnly = 0;
+int counterOfSongs = 1;
+int framesDownloaded = 0;
+int framesDownloadedOnly = 0;
+
+
+int connected = 0;
+
+
+
+pthread_t thread;
+
+int finished = 1;
+
+int disconnectionsTracker = 0;
+
 
 pthread_mutex_t download_mutex = PTHREAD_MUTEX_INITIALIZER;
 DownloadElement *currentDownloads = NULL;
@@ -48,11 +67,11 @@ int readFrameBinary(int socketFd, Frame *frame) {
     char buffer[256];
     int numBytes = read(socketFd, buffer, sizeof(buffer));
     if (numBytes <= 0) {
-        return numBytes; // Return if error or no data was read
+        return numBytes; 
     }
 
-    if (numBytes < 3) { // Not enough bytes to read header information
-        return -1; // Error code for insufficient data
+    if (numBytes < 3) { 
+        return -1; 
     }
 
     frame->type = buffer[0];
@@ -62,12 +81,12 @@ int readFrameBinary(int socketFd, Frame *frame) {
     memcpy(frame->header, buffer + 3, frame->headerLength);
     frame->header[frame->headerLength] = '\0';
 
-    // Check if enough bytes were received to read the ID, if applicable
+    
     if (strcmp(frame->header, "FILE_DATA") == 0 || strcmp(frame->header, "END") == 0) {
-        if (numBytes < 3 + frame->headerLength + 4 + 4) { // Not enough data to include ID
+        if (numBytes < 3 + frame->headerLength + 4 + 4) { 
             freeFrame(frame);
             printString("\nError code for insufficient data\n");
-            return -1; // Error code for insufficient data
+            return -1; 
         }
         frame->id = ntohl(*(uint32_t *)(buffer + 3 + frame->headerLength));
         frame->dataLength = ntohl(*(uint32_t *)(buffer + 7 + frame->headerLength));
@@ -78,7 +97,7 @@ int readFrameBinary(int socketFd, Frame *frame) {
         frame->data = (char *)malloc(dataLength);
         if (!frame->data) {
             freeFrame(frame);
-            return -1; // Memory allocation failure
+            return -1; 
         }
         memcpy(frame->data, buffer + dataStart, dataLength);
         return dataLength;
@@ -88,10 +107,10 @@ int readFrameBinary(int socketFd, Frame *frame) {
         frame->data = (char *)malloc(dataLength);
         if (!frame->data) {
             freeFrame(frame);
-            return -1; // Memory allocation failure
+            return -1; 
         }
         memcpy(frame->data, buffer + dataStart, dataLength);
-        frame->data[dataLength - 1] = '\0'; // Assure string termination
+        frame->data[dataLength - 1] = '\0'; 
         return dataLength;
     }
 }
@@ -118,25 +137,25 @@ void freeDownloadList(DownloadList *list) {
 }
 
 void clearDownloads(DownloadList *list) {
-    pthread_mutex_lock(&download_mutex);  // Lock the mutex to ensure thread safety
+    pthread_mutex_lock(&download_mutex);  
 
-    int j = 0;  // Initialize a new index to keep track of where to move active downloads
+    int j = 0;  
     for (int i = 0; i < list->size; i++) {
         if ((list->elements)[i].active == 0) {
-            free((list->elements)[i].name);  // Free the memory allocated for the name of the download
+            free((list->elements)[i].name);  
         } else {
             if (j != i) {
-                // Move active downloads to the 'j' index, effectively compressing the array
+               
                 (list->elements)[j] = (list->elements)[i];
             }
-            j++;  // Only increment 'j' if the download is active
+            j++; 
         }
     }
 
-    // Update the size of the list to the new number of active downloads
+    
     list->size = j;
 
-    pthread_mutex_unlock(&download_mutex);  // Unlock the mutex
+    pthread_mutex_unlock(&download_mutex);  
 }
 
 
@@ -246,129 +265,19 @@ void addDownload( DownloadList *list, Download *args) {
 
 //SIGNALS PHASE-----------------------------------------------------------------
 void ctrl_C_function(){
-    printString("Closing Session..\n");
-    if(pooleSocketFd > 0){
+    if(connected == 0){
+        exit(EXIT_SUCCESS);
+    }else{
         sendLogoutBowman(pooleSocketFd, bowman.name);
-        int result = readFrame(pooleSocketFd, &frame);
-        if (result <= 0) {
-            printString("\nERROR: OK not receieved\n");
-            
-            
-        }else if(strcmp(frame.header, "CONKO") == 0){
-            printString("\nERROR:Poole KO CONNECTION.\n");
-            //printFrame(&frame);
-            
-    
-        }else if(strcmp(frame.header, "CONOK") != 0){
-            printString("\nERROR: not what we were expecting\n");
-            //printFrame(&frame);
-            
-        }else{
-            //printFrame(&frame);
-            printString("\nConfirmation received from Poole! Clossing Session..\n");
-        }
     }
-    if(discoverySocketFd > 0){
-        sendLogoutBowman(discoverySocketFd, bowman.name);
-        int result = readFrame(discoverySocketFd, &frame);
-        if (result <= 0) {
-            printString("\nERROR: OK not receieved\n");
-            
-            
-        }else if(strcmp(frame.header, "CONKO") == 0){
-            printString("\nERROR:Discovery KO CONNECTION.\n");
-            //printFrame(&frame);
-            
     
-        }else if(strcmp(frame.header, "CONOK") != 0){
-            printString("\nERROR: not what we were expecting\n");
-            //printFrame(&frame);
-            
-        }else{
-            //printFrame(&frame);
-            printString("\nConfirmation received from Discovery! Closing session..\n");
-        }
-
-    }
-    close(pooleSocketFd);
-    close(discoverySocketFd);
-    printStringWithHeader("^\nFreeing memory..."," ");
-    
-    
-    free(bowman.name);
-    free(bowman.ipDiscovery);
-    free(bowman.folder);
-
-    free(frame.data);
-    free(frame.header);
-    freeSeparatedData(&separatedData, &numberOfData);
-
-    freeDownloadList(&list);
-    
-    
-
-    printStringWithHeader("     ...All memory freed...","\n\nReady to EXIT this BOWMAN Process.");
-
-
-    exit(EXIT_SUCCESS);
 }
 
-//-----------------------------------------------------------------
 
 
 
 
-//MANAGE ALL USER INPUTS-----------------------------------------------------------------
-
-void manageLogOut(){
-    printString("Closing Session..\n");
-    if(pooleSocketFd > 0){
-        sendLogoutBowman(pooleSocketFd, bowman.name);
-        int result = readFrame(pooleSocketFd, &frame);
-        if (result <= 0) {
-            printString("\nERROR: OK not receieved\n");
-            
-            
-        }else if(strcmp(frame.header, "CONKO") == 0){
-            printString("\nERROR:Poole KO CONNECTION.\n");
-            //printFrame(&frame);
-            
-    
-        }else if(strcmp(frame.header, "CONOK") != 0){
-            printString("\nERROR: not what we were expecting\n");
-            //printFrame(&frame);
-            
-        }else{
-            //printFrame(&frame);
-            printString("\nConfirmation received from Poole! Clossing Session..\n");
-        }
-
-    }
-    if(discoverySocketFd > 0){
-        sendRemoveConnectionBowman(discoverySocketFd, bowman.name);
-        int result = readFrame(discoverySocketFd, &frame);
-        if (result <= 0) {
-            printString("\nERROR: OK not receieved\n");
-            
-            
-        }else if(strcmp(frame.header, "CONKO") == 0){
-            printString("\nERROR:Discovery KO CONNECTION.\n");
-            //printFrame(&frame);
-            
-    
-        }else if(strcmp(frame.header, "CONOK") != 0){
-            printString("\nERROR: not what we were expecting\n");
-            //printFrame(&frame);
-            
-        }else{
-            //printFrame(&frame);
-            printString("\nConfirmation received from Discovery! Closing session..\n");
-        }
-
-    }
-    
-    close(pooleSocketFd);
-}
+void *downloadPlaylistThread(void *arg);
 
 void manageLogIn(){
     discoverySocketFd = connectToServer(bowman.ipDiscovery, bowman.portDiscovery);
@@ -396,9 +305,11 @@ void manageLogIn(){
         printString("\nConfirmation received from Discovery!\n");
 
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
+        
     }
     char * auxIp = strdup(separatedData[1]);
     pooleSocketFd = connectToServer(auxIp, atoi(separatedData[2]));
+    freeSeparatedData(&separatedData,&numberOfData);
     free(auxIp);
     sendNewConnectionBowmanPoole(pooleSocketFd, bowman.name);
     result = readFrame(pooleSocketFd, &frame);
@@ -418,76 +329,35 @@ void manageLogIn(){
     }else{
         //printFrame(&frame);
         printString("\nConfirmation received from Poole!\n");
+
+        disconnectionsTracker = 0;
+
+        //------------------------------------------------READING FRAMES THREAD
+
+        
+
+        if (pthread_create(&thread, NULL, downloadPlaylistThread, NULL) != 0) {
+            perror("Failed to create download thread");
+            
+            ctrl_C_function();
+        }else{
+            printString("Thread Created!");
+        }
+
+        pthread_detach(thread);
+
+    //------------------------------------------------
     }
 }
 
 void manageListSongs(){
     sendListSongs(pooleSocketFd);
-    int result = readFrame(pooleSocketFd, &frame);
-    //printFrame(&frame);
-
-    if (result <= 0) {
-        printString("\nERROR: OK not receieved\n");
-        ctrl_C_function();
-    }else if(strcmp(frame.header, "SONGS_RESPONSE") != 0){
-        printString("\nERROR: not what we were expecting\n");
-        //printFrame(&frame);
-        ctrl_C_function();
-        
-    }else{
-        int counterOfSongs = 1;
-        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-        //printInt("atoi(separatedData[0]):", atoi(separatedData[0]));
-        int numberOfFrames = atoi(separatedData[0]);
-        for(int re = 0; re < numberOfFrames; re++){
-            result = readFrame(pooleSocketFd, &frame);
-            ////printFrame(&frame);
-            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-            for(int mi = 0; mi < numberOfData; mi++){
-                printString(" ");
-                printOnlyInt(counterOfSongs);
-                printStringWithHeader(".", separatedData[mi]);
-                counterOfSongs++;
-
-            }
-        }
-
-        printString("\nALL SONGS PRINTED!");
-    }
+   
 }
 
 void manageListPlaylists(){
     sendListPlaylists(pooleSocketFd);
-    int result = readFrame(pooleSocketFd, &frame);
-    //printFrame(&frame);
-
-    if (result <= 0) {
-        printString("\nERROR: OK not receieved\n");
-        ctrl_C_function();
-    }else if(strcmp(frame.header, "SONGS_RESPONSE") != 0){
-        printString("\nERROR: not what we were expecting\n");
-        //printFrame(&frame);
-        ctrl_C_function();
-        
-    }else{
-        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-        //printInt("atoi(separatedData[0]):", atoi(separatedData[0]));
-        int numberOfFrames = atoi(separatedData[0]);
-        for(int re = 0; re < numberOfFrames; re++){
-            result = readFrame(pooleSocketFd, &frame);
-            ////printFrame(&frame);
-            numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-            printOnlyInt(re + 1);
-                
-            printStringWithHeader(".", separatedData[0]);
-
-            for(int mi = 1; mi < numberOfData; mi++){
-                printStringWithHeader("\t-", separatedData[mi]);
-            }
-        }
-
-        printString("\nALL PLAYLISTS PRINTED!");
-    }
+   
 }
 
 
@@ -495,24 +365,28 @@ void manageListPlaylists(){
 void *downloadPlaylistThread(void *arg) {
     (void)arg;
 
-    downloads = malloc(numberOfSongsToDownload * sizeof(Download));
+    downloads = NULL;
+   
 
     finishedDownloads = 0;
     numNewFilesReceived = 0;
     errorDownloads = 0;
    
-    
+
 
     char** separatedData;
     int numberOfData = 0;
     Frame frameD;
     initFrame(&frameD);
+ 
     
     
     
-    while(finishedDownloads < numberOfSongsToDownload){
+    while(finished){
+        
             readFrameBinary(pooleSocketFd, &frameD);
-            ////printFrame(&frameD);
+            
+            //printFrame(&frameD);
             
 
             if(strcmp(frameD.header, "NEW_FILE") == 0){
@@ -521,6 +395,7 @@ void *downloadPlaylistThread(void *arg) {
                 
                 asprintf(&miniBuffer, "clients%s/%s", bowman.folder, separatedData[0]);
                 printStringWithHeader("\nNEW Filenameeee:", miniBuffer);
+
 
                 downloads[numNewFilesReceived].pathOfTheFile = strdup(miniBuffer);
                 downloads[numNewFilesReceived].fdAttached = pooleSocketFd;
@@ -592,10 +467,143 @@ void *downloadPlaylistThread(void *arg) {
                 
                 printString("\nERROR: File doesn't exists in the server\n");
                 
+            }else if(strcmp(frameD.header, "SONGS_RESPONSE_PLAYLISTS") == 0 && songsResponseRunning == 0){
+                numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
+                //printInt("atoi(separatedData[0]):", atoi(separatedData[0]));
+                numberOfFramesListPlaylists = atoi(separatedData[0]);
+                
+                songsResponseRunning = 1;
+                framesDownloaded = 0;
+                
+            }else if(strcmp(frameD.header, "SONGS_RESPONSE_PLAYLISTS") == 0 && songsResponseRunning == 1){
+                
+              
+                numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
+                printOnlyInt(framesDownloaded + 1);
+                printStringWithHeader(".", separatedData[0]);
+                for(int mi = 1; mi < numberOfData; mi++){
+                    printStringWithHeader("\t-", separatedData[mi]);
+                }
+                framesDownloaded++;
+                
+                if(numberOfFramesListPlaylists <= framesDownloaded){
+                    songsResponseRunning = 0;
+                    numberOfFramesListPlaylists = 0;
+                    printString("\nALL PLAYLISTS PRINTED!");
+                    printString("\n$ ");
+
+                }
+
+                
+            }else if (strcmp(frameD.header, "PLAYLIST_FOUND") == 0){
+               
+
+                numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
+
+                numberOfSongsToDownload = numberOfSongsToDownload + atoi(separatedData[0]);
+
+                printInt("numberOfSongsToDownload:", numberOfSongsToDownload);
+
+                downloads = realloc(downloads, numberOfSongsToDownload * sizeof(Download));
+   
+        
+            }else if(strcmp(frameD.header, "CONOK") == 0){
+                finished = 0;
+                
+               
+                    sendRemoveConnectionBowman(discoverySocketFd, bowman.name);
+                    int result = readFrame(discoverySocketFd, &frame);
+                    if (result <= 0) {
+                        printString("\nERROR: OK not receieved\n");
+
+
+                    }else if(strcmp(frame.header, "CONKO") == 0){
+                        printString("\nERROR:Discovery KO CONNECTION.\n");
+                        //printFrame(&frame);
+
+
+                    }else if(strcmp(frame.header, "CONOK") != 0){
+                        printString("\nERROR: not what we were expecting\n");
+                        //printFrame(&frame);
+
+                    }else{
+                        //printFrame(&frame);
+                        printString("\nConfirmation received from Discovery! Closing session..\n");
+                    }
+                    close(pooleSocketFd);
+                    printString("\nLogging out...\n");
+                    close(pooleSocketFd);
+                    close(discoverySocketFd);
+                    printStringWithHeader("^\nFreeing memory..."," ");
+
+
+                    free(bowman.name);
+                    free(bowman.ipDiscovery);
+                    free(bowman.folder);
+
+                    free(frame.data);
+                    free(frame.header);
+                    freeSeparatedData(&separatedData, &numberOfData);
+
+                    freeDownloadList(&list);
+
+
+
+                    printStringWithHeader("     ...All memory freed...","\n\nReady to EXIT this BOWMAN Process.");
+
+                    freeSeparatedData(&separatedData, &numberOfData);
+
+                    freeFrame(&frameD);
+
+                    freeDownloadArray(finishedDownloads - errorDownloads );
+
+                    
+
+
+                    exit(EXIT_SUCCESS);
+
+                
+            }else if(strcmp(frameD.header, "SONGS_RESPONSE_SONGS") == 0 && songsResponseRunningOnly == 0){
+                numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
+                counterOfSongs = 1;
+                numberOfFramesListPlaylistsOnly = atoi(separatedData[0]);
+                
+                songsResponseRunningOnly = 1;
+                framesDownloadedOnly = 0;
+                
+            }else if(strcmp(frameD.header, "SONGS_RESPONSE_SONGS") == 0 && songsResponseRunningOnly == 1){
+                
+              
+                numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
+                
+              
+                numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
+                for(int mi = 0; mi < numberOfData; mi++){
+                    printString(" ");
+                    printOnlyInt(counterOfSongs);
+                    printStringWithHeader(".", separatedData[mi]);
+                    counterOfSongs++;
+                }
+                framesDownloadedOnly++;
+
+                
+                if(numberOfFramesListPlaylistsOnly <= framesDownloadedOnly){
+                    songsResponseRunningOnly = 0;
+                    numberOfFramesListPlaylistsOnly = 0;
+                    
+                    printString("\n$ ");
+
+                }
+
+                
             }
 
-
+        
     }
+
+
+
+    
     //free
     freeSeparatedData(&separatedData, &numberOfData);
 
@@ -604,6 +612,7 @@ void *downloadPlaylistThread(void *arg) {
     freeDownloadArray(finishedDownloads - errorDownloads );
   
     numberOfSongsToDownload = 0;
+    printString("\nWE freed this memory");
 
     return NULL;
 
@@ -615,52 +624,9 @@ void manageDownloadPlaylist(char ** input, int wordCount){
     
 
     char * playlistName = concatenateWords2(input, wordCount);
-   
 
     sendDownloadPlaylist(pooleSocketFd,  playlistName);
-    int result = readFrame(pooleSocketFd, &frame);
-    //printFrame(&frame);
-
-    if (result <= 0) {
-        printString("\nERROR: OK not receieved\n");
-        free(playlistName);
-        ctrl_C_function();
-    }else if(strcmp(frame.header, "PLAYLIST_NOT_FOUND") == 0){
-        printString("\nERROR: File doesn't exists in the server\n");
-        //printFrame(&frame);
-        free(playlistName);
-        
-        
-    }else if(strcmp(frame.header, "PLAYLIST_FOUND") != 0){
-        printString("\nERROR: not what we were expecting\n");
-        //printFrame(&frame);
-        free(playlistName);
-        ctrl_C_function();
-        
-    }else{
-        printStringWithHeader("Download started:", playlistName);
-
-        free(playlistName);
-        
-
-        numberOfData = separateData(frame.data, &separatedData, &numberOfData);
-
-        numberOfSongsToDownload = numberOfSongsToDownload + atoi(separatedData[0]);
-        
-        printInt("numberOfSongsToDownload:", numberOfSongsToDownload);
-
-        pthread_t thread;
-
-        if (pthread_create(&thread, NULL, downloadPlaylistThread, NULL) != 0) {
-            perror("Failed to create download thread");
-                
-            ctrl_C_function();
-        }
-    
-        pthread_detach(thread);
-   
-        
-    }
+     
     
 }
 
@@ -670,20 +636,15 @@ void manageDownload(char ** input, int wordCount){
     //char * song2 = "example.txt";
     
     sendDownloadSong(pooleSocketFd,  song);
-    
-    pthread_t thread;
 
     numberOfSongsToDownload = numberOfSongsToDownload + 1;
 
-    if (pthread_create(&thread, NULL, downloadPlaylistThread, NULL) != 0) {
-        perror("Failed to create download thread");
-        
-        ctrl_C_function();
-    }
-    
-    pthread_detach(thread);
-    
+    downloads = realloc(downloads, numberOfSongsToDownload * sizeof(Download));
+
     free(song);
+  
+    
+    
 }
 
 void manageCheckDownloads( DownloadList *list){
@@ -694,7 +655,7 @@ void manageCheckDownloads( DownloadList *list){
 
 void menu() {
     char buffer[200];
-    int connected = 0;
+    
     int inputLength;
     int numberOfWords = 0;
     int numberOfSpaces = 0;
@@ -706,11 +667,14 @@ void menu() {
     asprintf(&subFolder, "clients%s", bowman.folder);
     mkdir(subFolder, 0755);
     free(subFolder);
+
+    
+
     
     
     
 
-    while (1) {
+    while (finished) {
         //reset for each iteration
         numberOfWords = 0;
         numberOfSpaces = 0;
@@ -770,7 +734,7 @@ void menu() {
             if (connected) {
                 printString("Thanks for using HAL 9000, see you soon, music lover!\n");
                 connected = 0;
-                manageLogOut();
+                ctrl_C_function();
             } else {
                 printString("Cannot Logout, you are not connected to HAL 9000\n");
             }
@@ -786,7 +750,7 @@ void menu() {
             } else {
                 printString("Cannot List Playlist, you are not connected to HAL 9000\n");
             }
-        } else if ((numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0 && strcasecmp(input[1], "PLAYLIST") == 0) || (numberOfWords >= 1 && strcasecmp(input[0], "6") == 0 && strcasecmp(input[1], "6") == 0)) {
+        } else if ((numberOfWords > 2 && strcasecmp(input[0], "DOWNLOAD") == 0 && strcasecmp(input[1], "PLAYLIST") == 0) || (numberOfWords > 2 && strcasecmp(input[0], "6") == 0 && strcasecmp(input[1], "6") == 0)) {
             if (connected) {
                 manageDownloadPlaylist(input, numberOfWords);
             } else {
@@ -798,7 +762,7 @@ void menu() {
             } else {
                 printString("Cannot Check Downloads, you are not connected to HAL 9000\n");
             }
-        }else if ((numberOfWords >= 1 && strcasecmp(input[0], "DOWNLOAD") == 0) || (numberOfWords >= 1 && strcasecmp(input[0], "5") == 0)) {
+        }else if ((numberOfWords > 1 && strcasecmp(input[0], "DOWNLOAD") == 0) || (numberOfWords > 1 && strcasecmp(input[0], "5") == 0)) {
             if (connected) {
                 manageDownload(input, numberOfWords);
             } else {
@@ -814,7 +778,7 @@ void menu() {
             printString("ERROR: Please input a valid command.\n");
         }
     }
-    ctrl_C_function();
+    //ctrl_C_function();
 }
 
 //---------------------------------------------------------------------------------------
