@@ -197,7 +197,7 @@ void* uploadThread(void* args){
 
 void sendSongToBowman(int socketToSendSong, char * songName, int idSending){
     char * songPath = NULL;
-    asprintf(&songPath, "%s/%s", poole.folder, songName);  
+    asprintf(&songPath, "database%s/%s", poole.folder, songName);  
 
     int fd = -1;
     openFile(songPath, &fd);

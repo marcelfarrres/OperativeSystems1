@@ -1,10 +1,11 @@
-- Things to know: 
+- INSTRUCTIONS
 
-    1) Here we have a structure of a server with all the servers folders and names. 
+    1) Here we have a structure of a server with all folders and names. 
     I assumed that any songs that are placed in a playlist will be placed also in the server itself,
     so if you place a new song in any playlist you also need to place it in the general server folder,
     otherwise, when you try to download the playlist it will crash, as the code downloads the songs from the 
-    general folder.
+    general folder. This helps to save memory, as you can place a empty text file in a playlist named "Song.mp3" 
+    and have the origianl in the general folder. ()
 
     However, if you place a song in the general folder but not in any playlist, the program functions correctly.
 
@@ -12,6 +13,7 @@
         ├── /playlists
         │   ├── /kabanaMusic
         │   │   └── Beautiful Day.mp3 
+        │   │   └── Wonderwall - Remastered.mp3  <------ This file is an empty text file with the name of the song.  
         │   ├── /mamoKingz
         │   │   ├── Linger.mp3   <----------
         │   │   ├── Luka.mp3
@@ -29,26 +31,20 @@
         ├── Mad World.mp3
         └── Wonderwall - Remastered.mp3
 
-    2) We changed a little bit the config files to organize:
+    2) We added a Command Shortcut, so can use the normal command or the number, EXAMPLE: [$ 1] = [$ CONNECT]
+        (to download a playlist you need to put two sixes before the playlist name)
 
-        Bowman.dat:
-
-            Marcel
-            clients/marcel   <------ (we added the "/clients" folder)
-            127.0.0.1
-            8531
-
-        Poole.dat:
-        
-            ServerEast
-            database/serverEast  <------ (we added the "/database" folder)
-            127.0.0.1
-            8530
-            127.0.0.1
-            8532
+        ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        ┃ Commands Shortcuts:
+        ┃
+        ┃  1) CONNECT            5) DOWNLOAD
+        ┃  2) LOGOUT             6 6) DOWNLOAD PLAYLIST (double 6)
+        ┃  3) LIST SONGS         7) CHECK DOWNLOADS
+        ┃  4) LIST PLAYLISTS     8) CLEAR DOWNLOADS
+        ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 
-- Instructions of the makeFile: 
+   3) MAKEFILE
 
     We have 2 types of commands: 
 

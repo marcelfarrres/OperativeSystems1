@@ -256,15 +256,15 @@ void ctrl_C_function(){
             
         }else if(strcmp(frame.header, "CONKO") == 0){
             printString("\nERROR:Poole KO CONNECTION.\n");
-            printFrame(&frame);
+            //printFrame(&frame);
             
     
         }else if(strcmp(frame.header, "CONOK") != 0){
             printString("\nERROR: not what we were expecting\n");
-            printFrame(&frame);
+            //printFrame(&frame);
             
         }else{
-            printFrame(&frame);
+            //printFrame(&frame);
             printString("\nConfirmation received from Poole! Clossing Session..\n");
         }
     }
@@ -277,15 +277,15 @@ void ctrl_C_function(){
             
         }else if(strcmp(frame.header, "CONKO") == 0){
             printString("\nERROR:Discovery KO CONNECTION.\n");
-            printFrame(&frame);
+            //printFrame(&frame);
             
     
         }else if(strcmp(frame.header, "CONOK") != 0){
             printString("\nERROR: not what we were expecting\n");
-            printFrame(&frame);
+            //printFrame(&frame);
             
         }else{
-            printFrame(&frame);
+            //printFrame(&frame);
             printString("\nConfirmation received from Discovery! Closing session..\n");
         }
 
@@ -331,15 +331,15 @@ void manageLogOut(){
             
         }else if(strcmp(frame.header, "CONKO") == 0){
             printString("\nERROR:Poole KO CONNECTION.\n");
-            printFrame(&frame);
+            //printFrame(&frame);
             
     
         }else if(strcmp(frame.header, "CONOK") != 0){
             printString("\nERROR: not what we were expecting\n");
-            printFrame(&frame);
+            //printFrame(&frame);
             
         }else{
-            printFrame(&frame);
+            //printFrame(&frame);
             printString("\nConfirmation received from Poole! Clossing Session..\n");
         }
 
@@ -353,15 +353,15 @@ void manageLogOut(){
             
         }else if(strcmp(frame.header, "CONKO") == 0){
             printString("\nERROR:Discovery KO CONNECTION.\n");
-            printFrame(&frame);
+            //printFrame(&frame);
             
     
         }else if(strcmp(frame.header, "CONOK") != 0){
             printString("\nERROR: not what we were expecting\n");
-            printFrame(&frame);
+            //printFrame(&frame);
             
         }else{
-            printFrame(&frame);
+            //printFrame(&frame);
             printString("\nConfirmation received from Discovery! Closing session..\n");
         }
 
@@ -383,16 +383,16 @@ void manageLogIn(){
         
     }else if(strcmp(frame.header, "CON_KO") == 0){
         printString("\nERROR: There were no Poole servers connected.\n");
-        printFrame(&frame);
+        //printFrame(&frame);
         ctrl_C_function();
 
     }else if(strcmp(frame.header, "CON_OK") != 0){
         printString("\nERROR: not what we were expecting\n");
-        printFrame(&frame);
+        //printFrame(&frame);
         ctrl_C_function();
         
     }else{
-        printFrame(&frame);
+        //printFrame(&frame);
         printString("\nConfirmation received from Discovery!\n");
 
         numberOfData = separateData(frame.data, &separatedData, &numberOfData);
@@ -408,15 +408,15 @@ void manageLogIn(){
         
     }else if(strcmp(frame.header, "CON_KO") == 0){
         printString("\nERROR:Poole KO CONNECTION.\n");
-        printFrame(&frame);
+        //printFrame(&frame);
         ctrl_C_function();
 
     }else if(strcmp(frame.header, "CON_OK") != 0){
         printString("\nERROR: not what we were expecting\n");
-        printFrame(&frame);
+        //printFrame(&frame);
         ctrl_C_function();
     }else{
-        printFrame(&frame);
+        //printFrame(&frame);
         printString("\nConfirmation received from Poole!\n");
     }
 }
@@ -424,14 +424,14 @@ void manageLogIn(){
 void manageListSongs(){
     sendListSongs(pooleSocketFd);
     int result = readFrame(pooleSocketFd, &frame);
-    printFrame(&frame);
+    //printFrame(&frame);
 
     if (result <= 0) {
         printString("\nERROR: OK not receieved\n");
         ctrl_C_function();
     }else if(strcmp(frame.header, "SONGS_RESPONSE") != 0){
         printString("\nERROR: not what we were expecting\n");
-        printFrame(&frame);
+        //printFrame(&frame);
         ctrl_C_function();
         
     }else{
@@ -441,7 +441,7 @@ void manageListSongs(){
         int numberOfFrames = atoi(separatedData[0]);
         for(int re = 0; re < numberOfFrames; re++){
             result = readFrame(pooleSocketFd, &frame);
-            //printFrame(&frame);
+            ////printFrame(&frame);
             numberOfData = separateData(frame.data, &separatedData, &numberOfData);
             for(int mi = 0; mi < numberOfData; mi++){
                 printString(" ");
@@ -459,14 +459,14 @@ void manageListSongs(){
 void manageListPlaylists(){
     sendListPlaylists(pooleSocketFd);
     int result = readFrame(pooleSocketFd, &frame);
-    printFrame(&frame);
+    //printFrame(&frame);
 
     if (result <= 0) {
         printString("\nERROR: OK not receieved\n");
         ctrl_C_function();
     }else if(strcmp(frame.header, "SONGS_RESPONSE") != 0){
         printString("\nERROR: not what we were expecting\n");
-        printFrame(&frame);
+        //printFrame(&frame);
         ctrl_C_function();
         
     }else{
@@ -475,7 +475,7 @@ void manageListPlaylists(){
         int numberOfFrames = atoi(separatedData[0]);
         for(int re = 0; re < numberOfFrames; re++){
             result = readFrame(pooleSocketFd, &frame);
-            //printFrame(&frame);
+            ////printFrame(&frame);
             numberOfData = separateData(frame.data, &separatedData, &numberOfData);
             printOnlyInt(re + 1);
                 
@@ -495,8 +495,6 @@ void manageListPlaylists(){
 void *downloadPlaylistThread(void *arg) {
     (void)arg;
 
- 
-
     downloads = malloc(numberOfSongsToDownload * sizeof(Download));
 
     finishedDownloads = 0;
@@ -514,15 +512,15 @@ void *downloadPlaylistThread(void *arg) {
     
     while(finishedDownloads < numberOfSongsToDownload){
             readFrameBinary(pooleSocketFd, &frameD);
-            //printFrame(&frameD);
+            ////printFrame(&frameD);
             
 
             if(strcmp(frameD.header, "NEW_FILE") == 0){
                 char *miniBuffer;
                 numberOfData = separateData(frameD.data, &separatedData, &numberOfData);
                 
-                asprintf(&miniBuffer, "%s/%s", bowman.folder, separatedData[0]);
-                //printStringWithHeader("\nNEW Filenameeee:", miniBuffer);
+                asprintf(&miniBuffer, "clients%s/%s", bowman.folder, separatedData[0]);
+                printStringWithHeader("\nNEW Filenameeee:", miniBuffer);
 
                 downloads[numNewFilesReceived].pathOfTheFile = strdup(miniBuffer);
                 downloads[numNewFilesReceived].fdAttached = pooleSocketFd;
@@ -531,9 +529,12 @@ void *downloadPlaylistThread(void *arg) {
                 downloads[numNewFilesReceived].md5 = strdup(separatedData[2]);
                 downloads[numNewFilesReceived].name = strdup(separatedData[0]);
 
+                
+
                 fileDescriptors[numNewFilesReceived] = open( miniBuffer, O_WRONLY | O_TRUNC | O_CREAT, 0666);
                 if (fileDescriptors[numNewFilesReceived] == -1) {
                     perror("Error opening file");
+                    printString(" ??YEP ");
                     ctrl_C_function();
                 }
 
@@ -618,7 +619,7 @@ void manageDownloadPlaylist(char ** input, int wordCount){
 
     sendDownloadPlaylist(pooleSocketFd,  playlistName);
     int result = readFrame(pooleSocketFd, &frame);
-    printFrame(&frame);
+    //printFrame(&frame);
 
     if (result <= 0) {
         printString("\nERROR: OK not receieved\n");
@@ -626,13 +627,13 @@ void manageDownloadPlaylist(char ** input, int wordCount){
         ctrl_C_function();
     }else if(strcmp(frame.header, "PLAYLIST_NOT_FOUND") == 0){
         printString("\nERROR: File doesn't exists in the server\n");
-        printFrame(&frame);
+        //printFrame(&frame);
         free(playlistName);
         
         
     }else if(strcmp(frame.header, "PLAYLIST_FOUND") != 0){
         printString("\nERROR: not what we were expecting\n");
-        printFrame(&frame);
+        //printFrame(&frame);
         free(playlistName);
         ctrl_C_function();
         
@@ -699,8 +700,12 @@ void menu() {
     int numberOfSpaces = 0;
 
 
-    
+    //create the Clients/[name] folder
     initDownloadList(&list);
+    char *subFolder;
+    asprintf(&subFolder, "clients%s", bowman.folder);
+    mkdir(subFolder, 0755);
+    free(subFolder);
     
     
     

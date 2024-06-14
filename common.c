@@ -669,12 +669,15 @@ char *joinStrings(char **splitStrings, int numStrings) {
 
 // Function to read song names from a directory and divide them into frames
 int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *numFrames, int** numberOfSongsPerFrame) {
-    printStringWithHeader("folderPath:", folderPath);
-    DIR *dir = opendir(folderPath);
+    char *miniBuffer;
+    asprintf(&miniBuffer, "database%s", folderPath);
+    printStringWithHeader("folderPath:", miniBuffer);
+    DIR *dir = opendir(miniBuffer);
     if (dir == NULL) {
         perror("opendir");
         return -1;
     }
+    free(miniBuffer);
 
     struct dirent *ent;
     char **songList = NULL;
@@ -779,17 +782,18 @@ int readSongsFromFolder( char *folderPath, char ****songs, int *numSongs, int *n
 
 
 int readPlaylistsFromFolder(char *folderPath, Playlist **finalPlaylists, int *finalNumPlaylists) {
+    char *LongFolderPath;
     char *miniBuffer;
-    asprintf(&miniBuffer, "%s/playlists", folderPath);
+    asprintf(&LongFolderPath, "database%s/playlists", folderPath);
 
-    printStringWithHeader("folderPath:", miniBuffer);
-    DIR *dir = opendir(miniBuffer);
+    printStringWithHeader("folderPath:", LongFolderPath);
+    DIR *dir = opendir(LongFolderPath);
     if (dir == NULL) {
         perror("opendir");
-        free(miniBuffer);
+        free(LongFolderPath);
         return -1;
     }
-    free(miniBuffer);
+    free(LongFolderPath);
 
     struct dirent *ent;
     Playlist *playlists = NULL;
@@ -807,7 +811,7 @@ int readPlaylistsFromFolder(char *folderPath, Playlist **finalPlaylists, int *fi
     closedir(dir); // Close the directory after reading its contents
 
     for (int i = 0; i < playlistCount; i++) {
-        asprintf(&miniBuffer, "%s/playlists/%s", folderPath, playlists[i].name);
+        asprintf(&miniBuffer, "database%s/playlists/%s", folderPath, playlists[i].name);
 
         dir = opendir(miniBuffer);
         if (dir == NULL) {
