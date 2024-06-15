@@ -19,11 +19,14 @@ struct sockaddr_in c_addr;
 socklen_t c_len = sizeof (c_addr);
 
 
+//semaphore sem;
+
 
 
 //SIGNALS PHASE-----------------------------------------------------------------
 void ctrl_C_function_monolith(){
     printString("\nEXITED MONOLITITH\n");
+    //SEM_destructor(&sem);
     freeSeparatedData(&separatedData, &numberOfData);
     close(pipefd[0]);
     exit(EXIT_SUCCESS);
@@ -144,7 +147,7 @@ void sendFileDataBinary(int socketFd, char *fileData, int fileDataLength, int id
     
     char *frameToSend = createFrameBinary(0x04, "FILE_DATA", fileData, fileDataLength, id);
     if (frameToSend != NULL) {
-        usleep(400);
+        usleep(2000);
        
         write(socketFd, frameToSend, BINARY_FRAME_SIZE); 
         free(frameToSend);
@@ -547,6 +550,8 @@ void mainPooleProcess( char *argv[]){
 
 //-----------------------------------------------------------------
 
+
+
 int main(int argc, char *argv[]) {
 
 
@@ -555,6 +560,11 @@ int main(int argc, char *argv[]) {
     initFrame(&frame);
     numberOfSockets = 0;
     //SIGNAL ctrl C
+
+    //SEMPAHORE
+    //key_t key = 1234;  
+    //SEM_constructor_with_name(&sem, key);
+    //SEM_init(&sem, 1);  
     
 
 
@@ -591,6 +601,9 @@ int main(int argc, char *argv[]) {
             if(strcmp(newFrame.header, "STAT") == 0){
                 numberOfData = separateData(newFrame.data, &separatedData, &numberOfData);
 
+                //SEM_wait(&sem);
+                
+
                 // Open and lock the file
                 int fd = open("stats.txt", O_WRONLY | O_CREAT | O_APPEND, 0644);
                 if (fd == -1) {
@@ -598,11 +611,6 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
 
-                if (flock(fd, LOCK_EX) == -1) {  // Wait to acquire the lock
-                    perror("flock");
-                    close(fd);
-                    continue;
-                }
                 
                 //prepare the entry:
                 char * entryToStats = NULL;
@@ -613,11 +621,13 @@ int main(int argc, char *argv[]) {
                     perror("write");
                 }
                 free(entryToStats);
-                freeSeparatedData(&separatedData, &numberOfData);
+                
 
                 // Unlock and close the file
-                flock(fd, LOCK_UN);
                 close(fd);
+                //SEM_signal(&sem);
+
+                freeSeparatedData(&separatedData, &numberOfData);
 
 
 

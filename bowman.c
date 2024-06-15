@@ -219,11 +219,11 @@ void freeDownloadArray( int numDownloads) {
 
 void printDownloadProgress(const DownloadList *list) {
     if (list == NULL || list->elements == NULL) {
-        printf("No downloads to display.\n");
+        printString("No downloads to display.\n");
         return;
     }
 
-    printf("Download Progress:\n");
+    printString("Download Progress:\n");
     for (int i = 0; i < list->size; i++) {
         
         float progress = (float)list->elements[i].currentFileSize / list->elements[i].maxSize;
@@ -596,7 +596,21 @@ void *downloadPlaylistThread(void *arg) {
                 }
 
                 
+            }else if(strcmp(frameD.header, "NOT_FOUND") == 0 ){
+                
+              
+                printString("\nNOT FOUND!\n");
+
+                
+            }else if(strcmp(frameD.header, "PLAYLIST_NOT_FOUND") == 0 ){
+                
+              
+                printString("\nPLAYLIST NOT FOUND!\n");
+
+                
             }
+
+            
 
         
     }
