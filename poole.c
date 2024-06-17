@@ -1,5 +1,6 @@
 #include "common.h"
 #include "structures.h"
+#include "semaphore_v2.h"
 
 Poole poole;
 int pooleFd = -1; //POOLE FILE
@@ -19,7 +20,7 @@ struct sockaddr_in c_addr;
 socklen_t c_len = sizeof (c_addr);
 
 
-//semaphore sem;
+semaphore sem;
 
 
 
@@ -138,6 +139,7 @@ char *createFrameBinary(uint8_t type, char *header, char *data, int dataLength, 
 
     int pad = 256 - totalLength;
     memset(&frame[totalLength], 0, pad);  
+    
 
     return frame;
 }
@@ -147,7 +149,7 @@ void sendFileDataBinary(int socketFd, char *fileData, int fileDataLength, int id
     
     char *frameToSend = createFrameBinary(0x04, "FILE_DATA", fileData, fileDataLength, id);
     if (frameToSend != NULL) {
-        usleep(2000);
+        usleep(100);
        
         write(socketFd, frameToSend, BINARY_FRAME_SIZE); 
         free(frameToSend);
@@ -198,8 +200,37 @@ void* uploadThread(void* args){
     return NULL;    
 }
 
+int totalDownloads = 0;
+songDownloaded * songsDownloaded = NULL;
+
+
 
 void sendSongToBowman(int socketToSendSong, char * songName, int idSending){
+
+    //IF THE SONG HAS ALREADY BEEN SENT IN THE CONNECTION, THERE IS NO NEED TO SEND IT AGAIN
+    int alreadyDownloaded = 0;
+    for(int c = 0; c < totalDownloads; c++){
+        if((strcmp(songsDownloaded[c].name, songName ) == 0) && (songsDownloaded[c].socket == socketToSendSong)){
+            alreadyDownloaded = 1;
+        }
+    }
+
+    if(alreadyDownloaded == 1){
+        return;
+    }else{
+        
+        songsDownloaded = realloc(songsDownloaded, (totalDownloads + 1) * sizeof(songDownloaded));
+        songsDownloaded[totalDownloads].name = malloc(sizeof(char) * (strlen(songName) + 1));
+        
+        strcpy(songsDownloaded[totalDownloads].name, strdup(songName));
+
+        songsDownloaded[totalDownloads].socket = socketToSendSong;
+
+        totalDownloads++;
+        
+    }
+    //---------------------------------------------------------------------
+    
     char * songPath = NULL;
     asprintf(&songPath, "database%s/%s", poole.folder, songName);  
 
@@ -550,6 +581,16 @@ void mainPooleProcess( char *argv[]){
 
 //-----------------------------------------------------------------
 
+int parseLine(const char *line, char *songName, int *count) {
+    const char *ptr = strchr(line, ':');
+    if (!ptr) return 0; // No colon found
+
+    strncpy(songName, line, ptr - line);
+    songName[ptr - line] = '\0'; // Null-terminate the song name
+    *count = atoi(ptr + 2); // Skip the colon and space, then convert to integer
+    return 1;
+}
+
 
 
 int main(int argc, char *argv[]) {
@@ -562,9 +603,9 @@ int main(int argc, char *argv[]) {
     //SIGNAL ctrl C
 
     //SEMPAHORE
-    //key_t key = 1234;  
-    //SEM_constructor_with_name(&sem, key);
-    //SEM_init(&sem, 1);  
+    key_t key = 1234;  
+    SEM_constructor_with_name(&sem, key);
+    SEM_init(&sem, 1);  
     
 
 
@@ -587,62 +628,71 @@ int main(int argc, char *argv[]) {
         ctrl_C_function();
     }
 
-    if (pid == 0) {  // Child process: Monolith
-
+    if (pid == 0) {  // Child process
         signal(SIGINT, ctrl_C_function_monolith);
-
         close(pipefd[1]); // Close unused write end
         Frame newFrame;
         initFrame(&newFrame);
 
         while (readFrame(pipefd[0], &newFrame) > 0) {
-            //printStringWithHeader("Child received:", newFrame.data);
-
-            if(strcmp(newFrame.header, "STAT") == 0){
+            if (strcmp(newFrame.header, "STAT") == 0) {
+                int numberOfData;
+                char** separatedData = NULL;
                 numberOfData = separateData(newFrame.data, &separatedData, &numberOfData);
 
-                //SEM_wait(&sem);
-                
+                SEM_wait(&sem);
 
-                // Open and lock the file
-                int fd = open("stats.txt", O_WRONLY | O_CREAT | O_APPEND, 0644);
+                char* songName = separatedData[1];
+                int fd = open("stats.txt", O_RDWR | O_CREAT, 0644);
                 if (fd == -1) {
                     perror("open");
+                    SEM_signal(&sem);
                     continue;
                 }
 
-                
-                //prepare the entry:
-                char * entryToStats = NULL;
-                asprintf(&entryToStats, "Poole: %s \n\tSong Name: %s\n\tSize: %.2f Mbs\n\n", separatedData[0], separatedData[1], atof(separatedData[2]) / 1000000.0); 
+                char fileContent[4096] = {0};
+                read(fd, fileContent, sizeof(fileContent) - 1);
+                char newContent[4096] = {0};
+                int found = 0;
 
-                // Write to the file
-                if (write(fd, entryToStats, strlen(entryToStats)) == -1) {
-                    perror("write");
+                char *line = strtok(fileContent, "\n");
+                char lineSong[255];
+                int downloadCount;
+
+                while (line) {
+                    if (parseLine(line, lineSong, &downloadCount)) {
+                        if (strcmp(lineSong, songName) == 0) {
+                            downloadCount++;
+                            found = 1;
+                        }
+                        char *buffer;
+                        asprintf(&buffer, "%s: %d\n", lineSong, downloadCount);
+                        strcat(newContent, buffer);
+                    }
+                    line = strtok(NULL, "\n");
                 }
-                free(entryToStats);
-                
 
-                // Unlock and close the file
+                if (!found) {
+                    char buffer[255];
+                    sprintf(buffer, "%s: 1\n", songName);
+                    strcat(newContent, buffer);
+                }
+
+                // Rewrite the file with updated content
+                ftruncate(fd, 0);
+                lseek(fd, 0, SEEK_SET);
+                write(fd, newContent, strlen(newContent));
+
                 close(fd);
-                //SEM_signal(&sem);
+
+                SEM_signal(&sem);
 
                 freeSeparatedData(&separatedData, &numberOfData);
-
-
-
-            }else{
+            } else {
                 ctrl_C_function_monolith();
             }
-
-            
-
-            
         }
-
-        
-
-    } else {  // Parent process: Poole
+    }else {  // Parent process: Poole
         close(pipefd[0]); // Close unused read end
 
         signal(SIGINT, ctrl_C_function);

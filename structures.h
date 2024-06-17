@@ -88,5 +88,10 @@ typedef struct{
     int songSize;
 } SendThread;
 
+typedef struct{
+    int socket;
+    char * name;
+}songDownloaded;
+
 
 #endif
