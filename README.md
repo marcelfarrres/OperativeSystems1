@@ -31,10 +31,11 @@
         ├── Mad World.mp3
         └── Wonderwall - Remastered.mp3
 
+    2) From the Bowman point of view, you need to have a folder inside the project folder called: /clients, the code will handle the rest, so if Bowman "Marcel" connects, 
+        it will create a subfolder named /marcel in and store all the songs.
 
-        Also, you cannot have the same song in 2 playlist, it will crash.
 
-    2) We added a Command Shortcut, so can use the normal command or the number, EXAMPLE: [$ 1] = [$ CONNECT]
+    3) We added a Command Shortcut, so you can use the normal command or the number, EXAMPLE: [$ 1] = [$ CONNECT]
         (to download a playlist you need to put two sixes before the playlist name)
 
         ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -47,9 +48,7 @@
         ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 
-   3) MAKEFILE
-
-    The .dat files configured like this: (you can change them if you want)
+   4) MAKEFILE
     
         MATAGALLS:
             - Discovery: make d
