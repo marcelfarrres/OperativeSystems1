@@ -1075,7 +1075,11 @@ void sendPlayListFound(int socketFd, char * fileData) {
     free(frameToSend);
 }
 
-
+void sendDisconnectPooleToBowman(int socketFd) {
+    char * frameToSend = createFrame(0x03, "POOLE_DISCONNECTED", "EMPTY");
+    write(socketFd, frameToSend, MAX_FRAME_SIZE);
+    free(frameToSend);
+}
 
 //Monolith--------------------------------------------------
 void sendStatToMonolith(int socketFd, char * fileData) {

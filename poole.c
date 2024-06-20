@@ -13,6 +13,7 @@ int thisPooleFd;
 char** separatedData;
 int numberOfData = 0;
 
+
 int pipefd[2];
 pid_t pid;
 
@@ -57,6 +58,12 @@ void ctrl_C_function() {
         }
 
     }
+    for (int i = 0; i < numberOfSockets; i++) {
+        if(sockets[i] != thisPooleFd ){
+            sendDisconnectPooleToBowman(sockets[i]);
+        }
+    }
+    
     
     printStringWithHeader("^\nFreeing memory...", " ");
     printStringWithHeader(".", " ");

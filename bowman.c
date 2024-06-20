@@ -608,6 +608,64 @@ void *downloadPlaylistThread(void *arg) {
                 printString("\nPLAYLIST NOT FOUND!\n");
 
                 
+            }else if(strcmp(frameD.header, "POOLE_DISCONNECTED") == 0 ){
+                
+                printFrame(&frameD);
+                finished = 0;
+                
+               
+                    sendRemoveConnectionBowman(discoverySocketFd, bowman.name);
+                    int result = readFrame(discoverySocketFd, &frame);
+                    if (result <= 0) {
+                        printString("\nERROR: OK not receieved\n");
+
+
+                    }else if(strcmp(frame.header, "CONKO") == 0){
+                        printString("\nERROR:Discovery KO CONNECTION.\n");
+                        //printFrame(&frame);
+
+
+                    }else if(strcmp(frame.header, "CONOK") != 0){
+                        printString("\nERROR: not what we were expecting\n");
+                        //printFrame(&frame);
+
+                    }else{
+                        //printFrame(&frame);
+                        printString("\nConfirmation received from Discovery! Closing session..\n");
+                    }
+                    close(pooleSocketFd);
+                    printString("\nLogging out...\n");
+                    close(pooleSocketFd);
+                    close(discoverySocketFd);
+                    printStringWithHeader("^\nFreeing memory..."," ");
+
+
+                    free(bowman.name);
+                    free(bowman.ipDiscovery);
+                    free(bowman.folder);
+
+                    free(frame.data);
+                    free(frame.header);
+                    freeSeparatedData(&separatedData, &numberOfData);
+
+                    freeDownloadList(&list);
+
+
+
+                    printStringWithHeader("     ...All memory freed...","\n\nReady to EXIT this BOWMAN Process.");
+
+                    freeSeparatedData(&separatedData, &numberOfData);
+
+                    freeFrame(&frameD);
+
+                    freeDownloadArray(finishedDownloads - errorDownloads );
+
+                    
+
+
+                    exit(EXIT_SUCCESS);
+
+                
             }
 
             

@@ -22,10 +22,6 @@
 #include <sys/file.h>
 
 
-
-
-
-
 #include "structures.h"
 
 #define BINARY_SENDING_SIZE 200
@@ -124,6 +120,8 @@ void sendRemoveConnectionBowman(int socketFd,  char * userName);
 void sendSoungNotFound(int socketFd);
 void sendPlayListNotFound(int socketFd);
 void sendPlayListFound(int socketFd, char * fileData);
+void sendDisconnectPooleToBowman(int socketFd);
+
 
 //Monolith--------------------------------------------------
 void sendStatToMonolith(int socketFd, char * fileData);
